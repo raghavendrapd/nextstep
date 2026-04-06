@@ -1,0 +1,528 @@
+from fastapi import FastAPI, HTTPException, UploadFile, File, WebSocket, Response, Cookie, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from pydantic import BaseModel
+from typing import Optional, List
+import requests
+import sqlite3
+import json
+import os
+import re
+import hashlib
+import secrets
+from datetime import datetime, timedelta
+import csv
+import io
+
+app = FastAPI(title="NextStep AI - Sales Copilot", version="2.6.0")
+
+# Session storage (in-memory for simplicity)
+sessions = {}
+
+def get_session(session_id: str):
+    return sessions.get(session_id)
+
+def create_session(user_id: int, username: str):
+    session_id = secrets.token_urlsafe(32)
+    sessions[session_id] = {
+        "user_id": user_id,
+        "username": username,
+        "created": datetime.now()
+    }
+    return session_id
+
+def hash_password(password: str, salt: str = None):
+    if salt is None:
+        salt = secrets.token_hex(16)
+    hashed = hashlib.pbkdf2_hmac('sha256', password.encode(), salt.encode(), 100000)
+    return f"{salt}${hashed.hex()}", salt
+
+def verify_password(password: str, stored: str):
+    try:
+        salt, _ = stored.split("$")
+        new_hash, _ = hash_password(password, salt)
+        return new_hash == stored
+    except:
+        return False
+
+# -------------------- OLLAMA --------------------
+def call_ollama(prompt: str) -> str:
+    try:
+        response = requests.post(
+            "http://localhost:11434/api/generate",
+            json={"model": "phi3:mini", "prompt": prompt, "stream": False},
+            timeout=120
+        )
+        response.raise_for_status()
+        return response.json().get("response", "")
+    except Exception as e:
+        print(f"Ollama Error: {e}")
+        raise
+
+# -------------------- CORS --------------------
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# -------------------- SERVE UI --------------------
+@app.get("/")
+def serve_ui():
+    return FileResponse("templates/index.html")
+
+@app.get("/login")
+def serve_login():
+    return FileResponse("templates/login.html")
+
+
+# -------------------- DB SETUP --------------------
+def get_db():
+    conn = sqlite3.connect("calls.db", timeout=30)
+    return conn
+
+# Initialize tables with a fresh connection
+init_conn = sqlite3.connect("calls.db")
+init_conn.execute("""
+CREATE TABLE IF NOT EXISTS calls (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    call_id TEXT,
+    summary TEXT,
+    deal_stage TEXT,
+    next_steps TEXT,
+    pain_points TEXT,
+    action_items TEXT,
+    lead_score TEXT,
+    user_id INTEGER DEFAULT 1,
+    created_at TEXT
+)
+""")
+init_conn.execute("""
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    display_name TEXT,
+    created_at TEXT
+)
+""")
+init_conn.commit()
+
+# Create default user if none exists
+init_conn.execute("SELECT id FROM users LIMIT 1")
+if init_conn.execute("SELECT id FROM users LIMIT 1").fetchone() is None:
+    default_pw, _ = hash_password("demo123")
+    init_conn.execute("INSERT INTO users (username, password, display_name) VALUES (?, ?, ?)",
+                   ("demo", default_pw, "Demo User"))
+    init_conn.commit()
+
+# Add columns if missing
+try:
+    init_conn.execute("ALTER TABLE calls ADD COLUMN user_id INTEGER DEFAULT 1")
+    init_conn.commit()
+except:
+    pass
+try:
+    init_conn.execute("ALTER TABLE calls ADD COLUMN created_at TEXT")
+    init_conn.commit()
+except:
+    pass
+init_conn.close()
+
+
+# -------------------- MODELS --------------------
+class TranscriptRequest(BaseModel):
+    transcript: str
+    call_id: Optional[str] = None
+
+
+class AnalysisResponse(BaseModel):
+    call_id: Optional[str]
+    summary: str
+    deal_stage: str
+    pain_points: List[str]
+    action_items: List[str]
+    next_steps: str
+    lead_score: str
+    word_count: int
+    status: str
+
+
+class FollowUpRequest(BaseModel):
+    transcript: str
+    pain_points: List[str]
+    deal_stage: str
+    customer_type: Optional[str] = "startup"
+    tone: Optional[str] = "friendly"
+    company_context: Optional[str] = "AI tool that helps manage leads and automate follow-ups"
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
+    display_name: Optional[str] = None
+
+
+class UpdateProfileRequest(BaseModel):
+    display_name: str
+
+
+# -------------------- ANALYZE --------------------
+@app.post("/analyze", response_model=AnalysisResponse)
+def analyze_transcript(request: TranscriptRequest, session_id: str = Cookie(None)):
+    if not request.transcript or len(request.transcript.strip()) < 5:
+        raise HTTPException(status_code=400, detail="Transcript too short")
+
+    word_count = len(request.transcript.split())
+    transcript = request.transcript[:1000]
+
+    prompt = f"""Analyze this sales call. Return ONLY this exact JSON format with single words only:
+
+{{"summary":"brief summary","deal_stage":"Interested","pain_points":["pain point"],"action_items":["action"],"next_steps":"next step","lead_score":"Hot"}}
+
+Use ONLY these values:
+- deal_stage: Interested, Evaluation, Negotiation, Closing, Not Interested
+- lead_score: Hot, Warm, Cold
+
+Transcript:
+{transcript}"""
+
+    llm_response = call_ollama(prompt)
+    
+    cleaned = llm_response.strip()
+    cleaned = cleaned.strip("`")
+    if cleaned.startswith("json"):
+        cleaned = cleaned[4:].strip()
+    
+    try:
+        parsed = json.loads(cleaned)
+    except:
+        match = re.search(r"\{[\s\S]*\}", cleaned)
+        try:
+            parsed = json.loads(match.group()) if match else {}
+        except:
+            parsed = {}
+
+    def to_string(val):
+        if isinstance(val, list):
+            return ", ".join(str(v) for v in val)
+        return str(val) if val else ""
+
+    def to_list(val):
+        if isinstance(val, list):
+            return [str(v) for v in val]
+        if isinstance(val, str):
+            return [v.strip() for v in val.split(",") if v.strip()]
+        return []
+
+    summary = to_string(parsed.get("summary", ""))
+    deal_stage = to_string(parsed.get("deal_stage", ""))
+    pain_points = to_list(parsed.get("pain_points", []))
+    action_items = to_list(parsed.get("action_items", []))
+    next_steps = to_string(parsed.get("next_steps", ""))
+    lead_score = to_string(parsed.get("lead_score", "Warm"))
+
+    user_id = 1
+    if session_id and session_id in sessions:
+        user_id = sessions[session_id]["user_id"]
+
+    try:
+        db = get_db()
+        db.execute("""
+        INSERT INTO calls (call_id, summary, deal_stage, next_steps, pain_points, action_items, lead_score, user_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            request.call_id,
+            summary,
+            deal_stage,
+            next_steps,
+            json.dumps(pain_points),
+            json.dumps(action_items),
+            lead_score,
+            user_id,
+            datetime.now().isoformat()
+        ))
+        db.commit()
+        db.close()
+    except Exception as e:
+        print(f"DB Error: {e}")
+        raise
+
+    return AnalysisResponse(
+        call_id=request.call_id,
+        summary=summary,
+        deal_stage=deal_stage,
+        pain_points=pain_points,
+        action_items=action_items,
+        next_steps=next_steps,
+        lead_score=lead_score,
+        word_count=word_count,
+        status="success"
+    )
+
+
+# -------------------- FOLLOW-UP --------------------
+@app.post("/generate-followup")
+def generate_followup(req: FollowUpRequest):
+    prompt = f"Write a short 4-5 line follow-up message. Stage: {req.deal_stage}. Pain: {', '.join(req.pain_points)}"
+    try:
+        response = call_ollama(prompt)
+        return {"followup_message": response.strip()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# -------------------- AUTH --------------------
+@app.post("/register")
+def register(req: RegisterRequest):
+    db = get_db()
+    user = db.execute("SELECT id FROM users WHERE username = ?", (req.username,)).fetchone()
+    if user:
+        db.close()
+        raise HTTPException(status_code=400, detail="Username already exists")
+
+    hashed_pw, _ = hash_password(req.password)
+    display_name = req.display_name or req.username
+
+    db.execute("INSERT INTO users (username, password, display_name) VALUES (?, ?, ?)",
+                   (req.username, hashed_pw, display_name))
+    db.commit()
+
+    user = db.execute("SELECT id FROM users WHERE username = ?", (req.username,)).fetchone()
+    db.close()
+
+    session_id = create_session(user[0], req.username)
+    response = JSONResponse({"success": True, "username": req.username, "display_name": display_name})
+    response.set_cookie(key="session_id", value=session_id, httponly=True, max_age=7*24*60*60)
+    return response
+
+
+@app.post("/login")
+def login(req: LoginRequest):
+    db = get_db()
+    user = db.execute("SELECT id, username, password, display_name FROM users WHERE username = ?", (req.username,)).fetchone()
+    db.close()
+
+    if not user or not verify_password(req.password, user[2]):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    session_id = create_session(user[0], user[1])
+    response = JSONResponse({
+        "success": True,
+        "username": user[1],
+        "display_name": user[3] or user[1]
+    })
+    response.set_cookie(key="session_id", value=session_id, httponly=True, max_age=7*24*60*60)
+    return response
+
+
+@app.post("/logout")
+def logout(session_id: str = Cookie(None)):
+    if session_id:
+        sessions.pop(session_id, None)
+    response = JSONResponse({"success": True})
+    response.delete_cookie("session_id")
+    return response
+
+
+@app.get("/me")
+def get_current_user(session_id: str = Cookie(None)):
+    if not session_id or session_id not in sessions:
+        return {"authenticated": False}
+    session = sessions[session_id]
+    db = get_db()
+    user = db.execute("SELECT username, display_name FROM users WHERE id = ?", (session["user_id"],)).fetchone()
+    db.close()
+    if user:
+        return {
+            "authenticated": True,
+            "username": user[0],
+            "display_name": user[1] or user[0],
+            "user_id": session["user_id"]
+        }
+    return {"authenticated": False}
+
+
+@app.put("/profile")
+def update_profile(req: UpdateProfileRequest, session_id: str = Cookie(None)):
+    if not session_id or session_id not in sessions:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    session = sessions[session_id]
+    db = get_db()
+    db.execute("UPDATE users SET display_name = ? WHERE id = ?", (req.display_name, session["user_id"]))
+    db.commit()
+    db.close()
+    return {"success": True}
+
+
+# -------------------- HISTORY --------------------
+@app.get("/history")
+def get_history(session_id: str = Cookie(None)):
+    user_id = 1
+    if session_id and session_id in sessions:
+        user_id = sessions[session_id]["user_id"]
+
+    db = get_db()
+    rows = db.execute("SELECT * FROM calls WHERE user_id = ? ORDER BY id DESC", (user_id,)).fetchall()
+    db.close()
+
+    result = []
+
+    for row in rows:
+        item = {
+            "id": row[0],
+            "call_id": row[1],
+            "summary": row[2],
+            "deal_stage": row[3],
+            "next_steps": row[4],
+            "pain_points": json.loads(row[5] or "[]"),
+            "action_items": json.loads(row[6] or "[]"),
+            "lead_score": row[7] if len(row) > 7 else "Unknown",
+            "created_at": row[8] if len(row) > 8 else None
+        }
+        result.append(item)
+
+    return result
+
+
+# -------------------- EXPORT --------------------
+@app.get("/export/csv")
+def export_csv(session_id: str = Cookie(None)):
+    user_id = 1
+    if session_id and session_id in sessions:
+        user_id = sessions[session_id]["user_id"]
+
+    db = get_db()
+    rows = db.execute("SELECT * FROM calls WHERE user_id = ? ORDER BY id DESC", (user_id,)).fetchall()
+    db.close()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["ID", "Call ID", "Summary", "Deal Stage", "Next Steps", "Pain Points", "Action Items", "Lead Score", "Created At"])
+
+    for row in rows:
+        writer.writerow([
+            row[0], row[1], row[2], row[3], row[4],
+            "; ".join(json.loads(row[5] or "[]")),
+            "; ".join(json.loads(row[6] or "[]")),
+            row[7] if len(row) > 7 else "Unknown",
+            row[8] if len(row) > 8 else None
+        ])
+
+    output.seek(0)
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=nextstep_calls.csv"}
+    )
+
+
+@app.get("/export/json")
+def export_json(session_id: str = Cookie(None)):
+    user_id = 1
+    if session_id and session_id in sessions:
+        user_id = sessions[session_id]["user_id"]
+
+    db = get_db()
+    rows = db.execute("SELECT * FROM calls WHERE user_id = ? ORDER BY id DESC", (user_id,)).fetchall()
+    db.close()
+
+    result = []
+    for row in rows:
+        result.append({
+            "id": row[0],
+            "call_id": row[1],
+            "summary": row[2],
+            "deal_stage": row[3],
+            "next_steps": row[4],
+            "pain_points": json.loads(row[5] or "[]"),
+            "action_items": json.loads(row[6] or "[]"),
+            "lead_score": row[7] if len(row) > 7 else "Unknown",
+            "created_at": row[8] if len(row) > 8 else None
+        })
+
+    return Response(
+        content=json.dumps(result, indent=2),
+        media_type="application/json",
+        headers={"Content-Disposition": "attachment; filename=nextstep_calls.json"}
+    )
+
+
+@app.get("/export/pdf")
+def export_pdf(session_id: str = Cookie(None)):
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib import colors
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.units import inch
+    except ImportError:
+        raise HTTPException(status_code=500, detail="PDF export not available. Install reportlab: pip install reportlab")
+
+    user_id = 1
+    if session_id and session_id in sessions:
+        user_id = sessions[session_id]["user_id"]
+
+    db = get_db()
+    rows = db.execute("SELECT * FROM calls WHERE user_id = ? ORDER BY id DESC", (user_id,)).fetchall()
+    db.close()
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    title = Paragraph("<b>NextStep AI - Call Analysis Report</b>", styles["Title"])
+    elements.append(title)
+    elements.append(Spacer(1, 0.25*inch))
+
+    if rows:
+        data = [["ID", "Summary", "Deal Stage", "Lead Score", "Next Steps"]]
+        for row in rows[:50]:
+            summary = (row[2][:50] + "...") if row[2] and len(row[2]) > 50 else row[2]
+            next_steps = (row[4][:40] + "...") if row[4] and len(row[4]) > 40 else row[4]
+            data.append([
+                str(row[0]),
+                summary or "",
+                row[3] or "",
+                row[7] if len(row) > 7 else "Unknown",
+                next_steps or ""
+            ])
+
+        table = Table(data, colWidths=[0.5*inch, 2*inch, 1*inch, 0.9*inch, 2.5*inch])
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#50eede")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.HexColor("#1a1a1a"), colors.HexColor("#2a2a2a")]),
+            ("TEXTCOLOR", (0, 1), (-1, -1), colors.white),
+        ]))
+        elements.append(table)
+    else:
+        elements.append(Paragraph("No call analyses found.", styles["Normal"]))
+
+    doc.build(elements)
+    buffer.seek(0)
+
+    return Response(
+        content=buffer.getvalue(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=nextstep_calls.pdf"}
+    )
+
+
+# -------------------- RUN --------------------
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

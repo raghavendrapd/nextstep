@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>NextStep AI - Sales Intelligence</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            surface: "#131315",
+            background: "#131315",
+            "surface-container-lowest": "#0e0e10",
+            "surface-container-low": "#1c1b1d",
+            "surface-container": "#201f21",
+            "surface-container-high": "#2a2a2c",
+            "surface-container-highest": "#353437",
+            "surface-variant": "#353437",
+            primary: "#50eede",
+            "primary-container": "#1fd1c2",
+            secondary: "#c6bfff",
+            "secondary-container": "#4029ba",
+            tertiary: "#ffc8da",
+            "tertiary-container": "#ff9ec3",
+            error: "#ffb4ab",
+            "on-surface": "#e5e1e4",
+            "on-surface-variant": "#bacac6",
+            outline: "#859491",
+            "outline-variant": "#3b4a47",
+          },
+          fontFamily: {
+            headline: ["Space Grotesk"],
+            body: ["Inter"],
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    .glass-panel {
+      backdrop-filter: blur(12px);
+      background: rgba(32, 31, 33, 0.6);
+    }
+    .neon-glow {
+      box-shadow: 0 0 20px rgba(80, 238, 222, 0.3);
+    }
+    .neon-glow-sm {
+      box-shadow: 0 0 10px rgba(80, 238, 222, 0.2);
+    }
+    @keyframes recordingPulse {
+      0% {
+        transform: scale(1);
+        opacity: 0.8;
+      }
+      100% {
+        transform: scale(1.8);
+        opacity: 0;
+      }
+    }
+    #recordingPulseRing {
+      animation: recordingPulse 1.5s ease-out infinite;
+    }
+  </style>
+</head>
+<body class="bg-surface text-on-surface font-body min-h-screen flex">
+
+<!-- SideNavBar -->
+<aside class="h-screen w-64 fixed left-0 top-0 bg-[#1C1B1D] flex flex-col py-6 px-4 gap-8 z-40 shadow-2xl shadow-black/50">
+  <div class="flex items-center gap-3 px-2">
+    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary-container flex items-center justify-center">
+      <span class="material-symbols-outlined text-on-surface text-xl" style="font-variation-settings: 'FILL' 1;">bolt</span>
+    </div>
+    <div>
+      <h1 class="font-headline font-bold text-[#1FD1C2] text-lg leading-none">NextStep AI</h1>
+      <p class="text-[10px] text-gray-500 tracking-widest uppercase mt-1">Sales Intelligence</p>
+    </div>
+  </div>
+
+  <nav class="flex flex-col gap-2">
+    <button onclick="showPage('analyze')" id="nav-analyze" class="group transition-all duration-200 flex items-center gap-3 px-4 py-3 rounded-xl text-primary border-r-2 border-primary bg-gradient-to-r from-primary/10 to-transparent font-medium text-sm">
+      <span class="material-symbols-outlined">analytics</span>
+      <span>Analyze</span>
+    </button>
+    <button onclick="showPage('history')" id="nav-history" class="group transition-all duration-200 flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:text-white hover:bg-[#353437]/30 font-medium text-sm">
+      <span class="material-symbols-outlined">history</span>
+      <span>History</span>
+    </button>
+    <button onclick="showPage('settings')" id="nav-settings" class="group transition-all duration-200 flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:text-white hover:bg-[#353437]/30 font-medium text-sm">
+      <span class="material-symbols-outlined">settings</span>
+      <span>Settings</span>
+    </button>
+  </nav>
+
+
+</aside>
+
+<!-- Main Content -->
+<main class="ml-64 min-h-screen relative flex flex-col">
+  <!-- Background Decorations -->
+  <div class="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] pointer-events-none"></div>
+  <div class="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] bg-secondary/5 rounded-full blur-[100px] pointer-events-none"></div>
+
+  <!-- Page: Analyze -->
+  <div id="page-analyze" class="page flex-1 p-10 relative z-10">
+    <!-- Header -->
+    <header class="flex justify-between items-center mb-10">
+      <div>
+        <h2 class="text-4xl font-headline font-bold tracking-tight text-white">AI Copilot</h2>
+        <p class="text-on-surface-variant mt-1">Transform conversations into actionable intelligence.</p>
+      </div>
+      <div class="flex items-center gap-4">
+        <!-- Notifications -->
+        <div class="relative">
+          <button onclick="toggleNotifications()" class="w-10 h-10 flex items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high transition-colors">
+            <span class="material-symbols-outlined text-on-surface-variant">notifications</span>
+          </button>
+          <div id="notifDropdown" class="hidden absolute right-0 top-14 w-80 bg-surface-container border border-outline-variant/20 rounded-2xl shadow-xl p-4 z-50">
+            <h4 class="font-semibold text-sm mb-3">Notifications</h4>
+            <div class="space-y-3">
+              <div class="flex items-start gap-3 p-3 rounded-xl bg-surface-container-low hover:bg-surface-container-high transition-colors cursor-pointer">
+                <span class="material-symbols-outlined text-primary text-xl">mic</span>
+                <div>
+                  <p class="text-sm font-medium">Microphone ready</p>
+                  <p class="text-xs text-on-surface-variant">Click the mic to start recording</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3 p-3 rounded-xl bg-surface-container-low hover:bg-surface-container-high transition-colors cursor-pointer">
+                <span class="material-symbols-outlined text-secondary text-xl">smart_toy</span>
+                <div>
+                  <p class="text-sm font-medium">AI Analysis ready</p>
+                  <p class="text-xs text-on-surface-variant">Paste a transcript to analyze</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Profile -->
+        <div class="relative">
+          <button onclick="toggleProfileMenu()" class="h-10 w-10 rounded-full border border-primary/20 p-0.5 hover:border-primary/40 transition-colors cursor-pointer">
+            <div class="w-full h-full rounded-full bg-surface-container-highest flex items-center justify-center" id="headerAvatar">
+              <span class="material-symbols-outlined text-primary text-lg" style="font-variation-settings: 'FILL' 1;">person</span>
+            </div>
+          </button>
+          <div id="profileDropdown" class="hidden absolute right-0 top-14 w-64 bg-surface-container border border-outline-variant/20 rounded-2xl shadow-xl overflow-hidden z-50">
+            <div class="p-4 border-b border-outline-variant/20">
+              <p class="font-semibold text-sm" id="dropdownName">User</p>
+              <p class="text-xs text-on-surface-variant" id="dropdownUsername">@user</p>
+            </div>
+            <div class="p-2">
+              <button onclick="showPage('settings'); toggleProfileMenu();" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-container-low transition-colors text-sm">
+                <span class="material-symbols-outlined text-lg">settings</span>
+                Settings
+              </button>
+              <button onclick="logout()" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-container-low transition-colors text-sm text-error">
+                <span class="material-symbols-outlined text-lg">logout</span>
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Bento Grid -->
+    <div class="grid grid-cols-12 gap-6 max-w-7xl">
+      <!-- Record Call Section -->
+      <div class="col-span-12 lg:col-span-5">
+        <div class="glass-panel p-8 rounded-[2rem] border border-outline-variant/10 flex flex-col items-center justify-center text-center group transition-all duration-500 hover:border-primary/30 h-full min-h-[400px]">
+          <div class="relative mb-8">
+            <div id="recordingPulse" class="absolute inset-0 bg-error/20 rounded-full opacity-0 transition-opacity" style="display: none;"></div>
+            <div class="absolute inset-0 bg-primary/20 rounded-full opacity-0" id="recordingPulseRing"></div>
+            <div class="w-24 h-24 rounded-full bg-gradient-to-tr from-surface-container-highest to-surface-container flex items-center justify-center border border-primary/40 relative z-10 cursor-pointer hover:scale-105 transition-transform" id="recordBtn" onclick="toggleRecording()">
+              <span class="material-symbols-outlined text-primary text-5xl" id="recordIcon" style="font-variation-settings: 'FILL' 1;">mic</span>
+            </div>
+          </div>
+          <h3 class="text-2xl font-headline font-bold text-white mb-2">Record Call</h3>
+          <p class="text-on-surface-variant text-sm mb-8 max-w-[240px]">Real-time transcription and live sentiment tracking.</p>
+          <span id="recordTimer" class="text-primary font-bold text-lg mb-4 hidden">0:00</span>
+          <div class="flex gap-2 items-center">
+            <div class="w-1.5 h-1.5 rounded-full bg-error animate-pulse"></div>
+            <span id="recordingStatus" class="text-[10px] font-bold text-on-surface-variant tracking-widest uppercase">System Ready</span>
+          </div>
+          <div id="debugInfo" class="mt-4 text-xs text-outline"></div>
+        </div>
+      </div>
+
+      <!-- Transcript Section -->
+      <div class="col-span-12 lg:col-span-7">
+        <div class="glass-panel p-8 rounded-[2rem] border border-outline-variant/10 flex flex-col h-full group transition-all duration-500 hover:border-primary/30">
+          <div class="flex justify-between items-center mb-6">
+            <div class="flex items-center gap-3">
+              <span class="material-symbols-outlined text-primary">text_fields</span>
+              <h3 class="text-xl font-headline font-bold text-white">Transcript</h3>
+            </div>
+            <span class="text-xs font-medium text-on-surface-variant bg-surface-container-highest px-3 py-1 rounded-full">Live transcription appears here</span>
+          </div>
+          <div class="relative flex-1">
+            <textarea id="transcript" class="w-full h-full min-h-[300px] bg-surface-container-lowest/50 border-none rounded-2xl p-6 text-on-surface placeholder:text-gray-600 focus:ring-1 focus:ring-primary/40 resize-none font-body text-sm leading-relaxed" placeholder="Start recording to see live transcription here..."></textarea>
+            <div class="absolute bottom-4 right-4 flex items-center gap-2 bg-surface-container px-3 py-1.5 rounded-lg border border-outline-variant/20 shadow-lg">
+              <span id="charCount" class="text-[11px] font-bold text-primary">0</span>
+              <span class="text-[11px] font-medium text-on-surface-variant uppercase tracking-tighter">characters</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Analyze Button -->
+      <div class="col-span-12">
+        <div class="relative group">
+          <div class="absolute inset-0 bg-primary/20 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+          <button onclick="analyze()" class="w-full py-6 bg-gradient-to-r from-primary to-primary-container text-on-surface font-headline font-bold text-xl rounded-2xl shadow-2xl relative overflow-hidden transition-all duration-300 hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-4">
+            <span class="material-symbols-outlined text-3xl">neurology</span>
+            Analyze with NextStep AI
+            <span class="material-symbols-outlined">arrow_forward</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page: Results (Hidden initially) -->
+  <div id="page-results" class="page flex-1 p-10 relative z-10 hidden">
+    <header class="flex justify-between items-center mb-10">
+      <div>
+        <div class="flex items-center gap-3 mb-2">
+          <span class="text-primary text-xs font-bold tracking-[0.2em] uppercase font-headline">Analysis Result</span>
+          <div class="h-[1px] w-12 bg-primary/30"></div>
+        </div>
+        <h2 class="text-4xl font-headline font-bold text-white tracking-tight">Executive Summary</h2>
+      </div>
+      <div class="flex items-center gap-4">
+        <div id="stageBadge" class="px-5 py-2.5 rounded-full bg-secondary-container/20 border border-secondary/30 flex items-center gap-2">
+          <span class="text-secondary text-sm font-semibold tracking-wide uppercase" id="result-stage">Evaluation</span>
+        </div>
+        <div id="scoreBadge" class="px-5 py-2.5 rounded-full bg-primary/10 border border-primary/30 flex items-center gap-2 neon-glow-sm">
+          <span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings: 'FILL' 1;">local_fire_department</span>
+          <span class="text-primary text-sm font-bold tracking-wide uppercase" id="result-score">Hot Lead</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Results Grid -->
+    <div class="grid grid-cols-12 gap-6 max-w-7xl">
+      <!-- Summary Card -->
+      <div class="col-span-12 lg:col-span-7">
+        <div class="bg-surface-container rounded-3xl p-8 glass-panel border border-outline-variant/10 flex flex-col gap-6">
+          <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-2xl bg-surface-container-highest flex items-center justify-center">
+              <span class="material-symbols-outlined text-primary">auto_awesome</span>
+            </div>
+            <div>
+              <h3 class="text-xl font-headline font-bold text-on-surface">Executive Summary</h3>
+              <p class="text-sm text-outline">AI-generated analysis</p>
+            </div>
+          </div>
+          <p id="result-summary" class="text-on-surface-variant leading-relaxed text-lg">
+            Loading...
+          </p>
+        </div>
+      </div>
+
+      <!-- Pain Points -->
+      <div class="col-span-12 lg:col-span-5">
+        <div class="bg-surface-container-low rounded-3xl p-8 border border-outline-variant/10 h-full">
+          <h3 class="text-xl font-headline font-bold text-on-surface mb-6">Pain Points</h3>
+          <ul id="result-pain" class="flex flex-col gap-4">
+            <li class="flex items-start gap-4">
+              <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <span class="material-symbols-outlined text-primary text-sm">bolt</span>
+              </div>
+              <span class="text-sm text-on-surface-variant">Loading...</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Action Items -->
+      <div class="col-span-12 lg:col-span-6">
+        <div class="bg-surface-container rounded-3xl p-8 border border-outline-variant/5">
+          <h3 class="text-xl font-headline font-bold text-on-surface mb-6">Action Items</h3>
+          <ul id="result-actions" class="flex flex-col gap-3">
+            <li class="flex items-center gap-4 p-4 rounded-2xl bg-surface-container-highest/20 border border-outline-variant/10">
+              <div class="w-6 h-6 rounded-md border-2 border-outline-variant flex items-center justify-center">
+              </div>
+              <span class="text-sm text-on-surface">Loading...</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Next Steps -->
+      <div class="col-span-12 lg:col-span-6">
+        <div class="bg-gradient-to-br from-surface-container to-surface-container-low rounded-3xl p-8 border border-outline-variant/10 relative overflow-hidden">
+          <div class="absolute -top-12 -right-12 w-32 h-32 bg-primary/10 blur-[60px]"></div>
+          <h3 class="text-xl font-headline font-bold text-on-surface mb-6">Next Steps</h3>
+          <p id="result-next" class="text-sm text-on-surface-variant italic leading-relaxed">
+            Loading...
+          </p>
+        </div>
+      </div>
+
+      <!-- Generate Follow-up -->
+      <div class="col-span-12">
+        <div class="flex items-center justify-between bg-surface-container rounded-3xl p-6 border border-outline-variant/10">
+          <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-2xl bg-secondary-container/20 flex items-center justify-center">
+              <span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">mail</span>
+            </div>
+            <div>
+              <h3 class="font-headline font-bold text-on-surface">Ready to follow up?</h3>
+              <p class="text-sm text-on-surface-variant">Generate a personalized outreach message</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <select id="formatSelect" class="bg-surface-container-high text-on-surface text-sm font-medium px-4 py-2.5 rounded-xl border-none focus:ring-1 focus:ring-primary cursor-pointer">
+              <option value="email">Email</option>
+              <option value="linkedin">LinkedIn</option>
+              <option value="sms">SMS</option>
+            </select>
+            <button onclick="showFollowUp()" class="px-6 py-3 bg-gradient-to-r from-primary to-primary-container text-on-surface font-bold rounded-xl shadow-lg hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2">
+              <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">magic_button</span>
+              Generate Follow-up
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page: History -->
+  <div id="page-history" class="page flex-1 p-10 relative z-10 hidden">
+    <header class="flex justify-between items-center mb-10">
+      <div>
+        <h2 class="text-4xl font-headline font-bold tracking-tight text-white">History</h2>
+        <p class="text-on-surface-variant mt-1">Access your complete analysis history.</p>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="relative">
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg">search</span>
+          <input id="searchHistory" oninput="filterHistory()" class="bg-surface-container-low border border-outline-variant/20 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all placeholder:text-gray-600 w-64" placeholder="Search analyses..." type="text"/>
+        </div>
+      </div>
+    </header>
+
+    <!-- History List -->
+    <div id="historyList" class="max-w-7xl">
+      <div class="text-center py-20">
+        <div class="w-16 h-16 rounded-full bg-surface-container mx-auto flex items-center justify-center mb-4">
+          <span class="material-symbols-outlined text-3xl text-outline">inbox</span>
+        </div>
+        <p class="text-on-surface-variant">No analyses yet. Analyze your first call!</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page: Follow-up Generator -->
+  <div id="page-followup" class="page flex-1 p-10 relative z-10 hidden">
+    <header class="flex justify-between items-center mb-10">
+      <div>
+        <h2 class="text-4xl font-headline font-bold tracking-tight text-white">Follow-up Generator</h2>
+        <p class="text-on-surface-variant mt-1">Transform insights into high-converting outreach.</p>
+      </div>
+    </header>
+
+    <div class="grid grid-cols-12 gap-8 max-w-7xl">
+      <!-- Summary Reference -->
+      <div class="col-span-4">
+        <div class="surface-container rounded-2xl p-6 shadow-xl relative overflow-hidden">
+          <h3 class="font-headline text-lg font-bold mb-4 flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary">summarize</span>
+            Call Summary
+          </h3>
+          <div class="space-y-6">
+            <div>
+              <span class="text-[10px] uppercase tracking-widest text-outline font-bold">Summary</span>
+              <p id="followup-summary" class="text-sm text-on-surface-variant mt-1">Loading...</p>
+            </div>
+            <div>
+              <span class="text-[10px] uppercase tracking-widest text-outline font-bold">Key Pain Points</span>
+              <ul id="followup-pain" class="mt-2 space-y-2">
+                <li class="flex items-start gap-2 text-sm text-on-surface-variant">
+                  <span class="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0"></span>
+                  Loading...
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Generator -->
+      <div class="col-span-8">
+        <div class="glass-panel rounded-3xl p-8 shadow-2xl border border-outline-variant/10">
+          <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-4">
+              <div class="flex bg-surface-container-high rounded-xl p-1">
+                <button id="tone-pro" onclick="setTone('professional')" class="px-4 py-1.5 text-xs font-semibold bg-surface-container-highest text-primary rounded-lg shadow-sm">Professional</button>
+                <button id="tone-casual" onclick="setTone('casual')" class="px-4 py-1.5 text-xs font-semibold text-on-surface-variant hover:text-on-surface">Casual</button>
+              </div>
+            </div>
+            <button onclick="regenerateFollowUp()" class="flex items-center gap-2 text-primary font-semibold text-sm hover:underline transition-all">
+              <span class="material-symbols-outlined text-lg">auto_fix</span>
+              Regenerate
+            </button>
+          </div>
+
+          <div class="relative">
+            <div id="generatingIndicator" class="absolute top-4 right-4 z-10 hidden">
+              <div class="flex items-center gap-1.5 bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20">
+                <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                <span class="text-[10px] font-bold text-primary tracking-wider uppercase">AI Drafting</span>
+              </div>
+            </div>
+            <textarea id="followupOutput" class="w-full h-[400px] bg-surface-container-lowest/50 text-on-surface p-8 rounded-2xl border border-outline-variant/20 focus:border-primary/50 focus:ring-0 font-body text-[15px] leading-relaxed resize-none transition-all shadow-inner" spellcheck="false">Select format and click generate to create a follow-up message...</textarea>
+          </div>
+
+          <div class="flex items-center justify-between mt-8">
+            <div class="flex items-center gap-6">
+              <div class="flex items-center gap-2 text-on-surface-variant text-xs">
+                <span class="material-symbols-outlined text-sm">history_edu</span>
+                AI Generated
+              </div>
+            </div>
+            <div class="flex items-center gap-4">
+              <button onclick="copyFollowUp()" class="px-8 py-3 bg-gradient-to-r from-primary to-primary-container text-on-surface font-bold rounded-xl text-sm flex items-center gap-2 shadow-lg shadow-primary/10 active:scale-95 transition-all group">
+                <span class="material-symbols-outlined group-active:scale-125 transition-transform">content_copy</span>
+                Copy to Clipboard
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page: Settings -->
+  <div id="page-settings" class="page flex-1 p-10 relative z-10 hidden">
+    <header class="mb-10">
+      <h2 class="text-4xl font-headline font-bold tracking-tight text-white">Settings</h2>
+      <p class="text-on-surface-variant mt-1">Configure your NextStep AI experience.</p>
+    </header>
+    <div class="max-w-2xl space-y-6">
+      <!-- Profile Section -->
+      <div class="bg-surface-container rounded-3xl p-8 border border-outline-variant/10">
+        <h3 class="font-headline font-bold text-lg mb-6 flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary">account_circle</span>
+          Profile
+        </h3>
+        <div class="space-y-5">
+          <div>
+            <label class="block text-sm font-medium mb-2">Display Name</label>
+            <input id="settingsDisplayName" class="w-full bg-surface-container-low border border-outline-variant/20 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary" type="text" placeholder="Your name"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-2">Username</label>
+            <input id="settingsUsername" class="w-full bg-surface-container-low border border-outline-variant/20 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary" type="text" readonly/>
+          </div>
+          <button onclick="saveProfile()" class="px-6 py-2.5 bg-primary text-surface font-semibold rounded-xl hover:opacity-90 transition-all">
+            Save Changes
+          </button>
+        </div>
+      </div>
+
+      <!-- Export Section -->
+      <div class="bg-surface-container rounded-3xl p-8 border border-outline-variant/10">
+        <h3 class="font-headline font-bold text-lg mb-6 flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary">download</span>
+          Export Data
+        </h3>
+        <p class="text-on-surface-variant text-sm mb-6">Download your call history in various formats.</p>
+        <div class="grid grid-cols-3 gap-4">
+          <a href="/export/csv" class="flex flex-col items-center gap-3 p-5 bg-surface-container-low rounded-2xl border border-outline-variant/20 hover:border-primary/30 transition-all group">
+            <span class="material-symbols-outlined text-3xl text-primary group-hover:scale-110 transition-transform">table_chart</span>
+            <span class="text-sm font-medium">CSV</span>
+          </a>
+          <a href="/export/json" class="flex flex-col items-center gap-3 p-5 bg-surface-container-low rounded-2xl border border-outline-variant/20 hover:border-primary/30 transition-all group">
+            <span class="material-symbols-outlined text-3xl text-secondary group-hover:scale-110 transition-transform">data_object</span>
+            <span class="text-sm font-medium">JSON</span>
+          </a>
+          <a href="/export/pdf" class="flex flex-col items-center gap-3 p-5 bg-surface-container-low rounded-2xl border border-outline-variant/20 hover:border-primary/30 transition-all group">
+            <span class="material-symbols-outlined text-3xl text-tertiary group-hover:scale-110 transition-transform">picture_as_pdf</span>
+            <span class="text-sm font-medium">PDF</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Logout -->
+      <div class="bg-surface-container rounded-3xl p-8 border border-outline-variant/10">
+        <h3 class="font-headline font-bold text-lg mb-4 flex items-center gap-2">
+          <span class="material-symbols-outlined text-error">logout</span>
+          Account
+        </h3>
+        <button onclick="logout()" class="px-6 py-2.5 bg-error/20 text-error font-semibold rounded-xl hover:bg-error/30 transition-all">
+          Sign Out
+        </button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Toast -->
+<div id="toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-3 bg-surface-container border border-primary/30 rounded-xl shadow-lg shadow-primary/10 opacity-0 transition-all duration-300 pointer-events-none z-50">
+  <span id="toastText" class="text-sm font-medium"></span>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="fixed inset-0 bg-surface/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+  <div class="text-center">
+    <div class="w-16 h-16 border-4 border-surface-container-highest border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
+    <p class="text-on-surface-variant">Analyzing transcript...</p>
+  </div>
+</div>
+
+<script>
+  let lastAnalysis = null;
+  let historyData = [];
+  let isRecording = false;
+  let recordingInterval;
+  let seconds = 0;
+  let selectedTone = 'professional';
+  let recognition = null;
+  let currentUser = null;
+
+  // Auth check
+  (async function checkAuth() {
+    try {
+      const res = await fetch('/me');
+      const data = await res.json();
+      if (!data.authenticated) {
+        window.location.href = '/login';
+        return false;
+      }
+      currentUser = data;
+      return true;
+    } catch {
+      window.location.href = '/login';
+      return false;
+    }
+  })();
+
+  async function loadSettings() {
+    try {
+      const res = await fetch('/me');
+      const data = await res.json();
+      if (data.authenticated) {
+        const displayName = data.display_name || (data.username.charAt(0).toUpperCase() + data.username.slice(1));
+        document.getElementById('settingsDisplayName').value = displayName;
+        document.getElementById('settingsUsername').value = data.username;
+        document.getElementById('dropdownName').textContent = displayName;
+        document.getElementById('dropdownUsername').textContent = '@' + data.username;
+        document.getElementById('headerAvatar').innerHTML = `<span class="text-sm font-bold text-primary">${data.username.charAt(0).toUpperCase()}</span>`;
+      }
+    } catch {}
+  }
+
+  function toggleNotifications() {
+    document.getElementById('notifDropdown').classList.toggle('hidden');
+    document.getElementById('profileDropdown').classList.add('hidden');
+  }
+
+  function toggleProfileMenu() {
+    document.getElementById('profileDropdown').classList.toggle('hidden');
+    document.getElementById('notifDropdown').classList.add('hidden');
+  }
+
+  // Close dropdowns when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#notifDropdown') && !e.target.closest('[onclick="toggleNotifications()"]')) {
+      document.getElementById('notifDropdown')?.classList.add('hidden');
+    }
+    if (!e.target.closest('#profileDropdown') && !e.target.closest('[onclick="toggleProfileMenu()"]')) {
+      document.getElementById('profileDropdown')?.classList.add('hidden');
+    }
+  });
+
+  async function saveProfile() {
+    const displayName = document.getElementById('settingsDisplayName').value.trim();
+    if (!displayName) return;
+    try {
+      const res = await fetch('/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ display_name: displayName })
+      });
+      if (res.ok) showToast('Profile updated!');
+    } catch {}
+  }
+
+  async function logout() {
+    try {
+      await fetch('/logout', { method: 'POST' });
+    } catch {}
+    window.location.href = '/login';
+  }
+
+  // Initialize Speech Recognition (browser's built-in)
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SpeechRecognition) {
+    recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+    
+    recognition.onstart = () => {
+      console.log('>>> Speech recognition STARTED');
+    };
+    
+    recognition.onresult = (e) => {
+      console.log('>>> onresult fired, results:', e.results.length);
+      let t = "";
+      for (let i = 0; i < e.results.length; i++) {
+        const transcript = e.results[i][0].transcript;
+        const isFinal = e.results[i].isFinal;
+        console.log('>>> Result', i, ':', transcript, '(final:', isFinal, ')');
+        t += transcript;
+      }
+      const transcriptEl = document.getElementById('transcript');
+      transcriptEl.value = t;
+      document.getElementById('charCount').textContent = t.length.toLocaleString();
+    };
+    
+    recognition.onerror = (e) => {
+      console.error('>>> Speech recognition ERROR:', e.error);
+    };
+    
+    recognition.onend = () => {
+      console.log('>>> Speech recognition ENDED');
+    };
+  }
+
+  // Check speech recognition on page load
+  document.addEventListener('DOMContentLoaded', function() {
+    const debugInfo = document.getElementById('debugInfo');
+    if (debugInfo) {
+      if (SpeechRecognition) {
+        debugInfo.innerHTML = 'Live transcription: Ready<br>(Uses browser speech recognition)';
+      } else {
+        debugInfo.innerHTML = 'Live transcription: Not supported<br>Use Chrome/Edge for best results';
+      }
+    }
+  });
+
+  // Navigation
+  function showPage(page) {
+    document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+    document.getElementById('page-' + page).classList.remove('hidden');
+    
+    document.querySelectorAll('aside nav button').forEach(btn => {
+      btn.classList.remove('text-primary', 'border-r-2', 'border-primary', 'bg-gradient-to-r', 'from-primary/10', 'to-transparent');
+      btn.classList.add('text-gray-500');
+    });
+    
+    const navBtn = document.getElementById('nav-' + page);
+    if (navBtn) {
+      navBtn.classList.remove('text-gray-500');
+      navBtn.classList.add('text-primary', 'border-r-2', 'border-primary', 'bg-gradient-to-r', 'from-primary/10', 'to-transparent');
+    }
+    
+    if (page === 'history') loadHistory();
+    if (page === 'settings') loadSettings();
+  }
+
+  // Recording with browser Speech Recognition
+  function toggleRecording() {
+    const btn = document.getElementById('recordBtn');
+    const icon = document.getElementById('recordIcon');
+    const timer = document.getElementById('recordTimer');
+    const recordingStatus = document.getElementById('recordingStatus');
+    
+    if (!isRecording) {
+      if (recognition) {
+        recognition.start();
+        showToast('Recording... Speak now!');
+      } else {
+        showToast('Speech recognition not supported');
+        return;
+      }
+      
+      // Update UI
+      btn.classList.add('bg-error/20', 'border-error');
+      btn.classList.remove('bg-gradient-to-tr', 'from-surface-container-highest', 'to-surface-container');
+      icon.textContent = 'stop';
+      icon.classList.remove('text-primary');
+      icon.classList.add('text-error');
+      timer.classList.remove('hidden');
+      if (recordingStatus) {
+        recordingStatus.textContent = 'Recording...';
+      }
+      
+      seconds = 0;
+      recordingInterval = setInterval(() => {
+        seconds++;
+        const m = Math.floor(seconds / 60), s = seconds % 60;
+        timer.textContent = `${m}:${s.toString().padStart(2,'0')}`;
+      }, 1000);
+      
+      isRecording = true;
+      
+      // Start pulsing animation
+      const pulse = document.getElementById('recordingPulse');
+      const pulseRing = document.getElementById('recordingPulseRing');
+      pulse.style.display = 'block';
+      pulseRing.style.animation = 'recordingPulse 1.5s ease-out infinite';
+      
+    } else {
+      if (recognition) {
+        recognition.stop();
+      }
+      
+      // Update UI
+      btn.classList.remove('bg-error/20', 'border-error');
+      btn.classList.add('bg-gradient-to-tr', 'from-surface-container-highest', 'to-surface-container');
+      icon.textContent = 'mic';
+      icon.classList.add('text-primary');
+      icon.classList.remove('text-error');
+      timer.classList.add('hidden');
+      clearInterval(recordingInterval);
+      
+      if (recordingStatus) {
+        recordingStatus.textContent = 'System Ready';
+      }
+      
+      isRecording = false;
+      
+      // Stop pulsing animation
+      const pulse = document.getElementById('recordingPulse');
+      const pulseRing = document.getElementById('recordingPulseRing');
+      pulse.style.display = 'none';
+      pulseRing.style.animation = 'none';
+      
+      // Show toast
+      const text = document.getElementById('transcript').value.trim();
+      if (text) {
+        showToast('Recording complete!');
+      }
+    }
+  }
+
+  // Character Count (for manual typing)
+  document.getElementById('transcript').addEventListener('input', (e) => {
+    document.getElementById('charCount').textContent = e.target.value.length;
+  });
+
+  // Analyze
+  async function analyze() {
+    const transcript = document.getElementById('transcript').value.trim();
+    if (!transcript) {
+      showToast('Please enter a transcript first');
+      return;
+    }
+
+    document.getElementById('loadingOverlay').classList.remove('hidden');
+
+    try {
+      const res = await fetch('/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript, call_id: 'ui_call' })
+      });
+
+      const data = await res.json();
+      lastAnalysis = data;
+      
+      document.getElementById('result-summary').textContent = data.summary || '—';
+      document.getElementById('result-stage').textContent = data.deal_stage || 'Unknown';
+      document.getElementById('result-score').textContent = data.lead_score || 'Unknown';
+      document.getElementById('result-next').textContent = data.next_steps || '—';
+      
+      const painEl = document.getElementById('result-pain');
+      painEl.innerHTML = (data.pain_points || []).map(p => `
+        <li class="flex items-start gap-4">
+          <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <span class="material-symbols-outlined text-primary text-sm">bolt</span>
+          </div>
+          <span class="text-sm text-on-surface-variant">${p}</span>
+        </li>
+      `).join('') || '<li class="text-sm text-outline">None identified</li>';
+      
+      const actionsEl = document.getElementById('result-actions');
+      actionsEl.innerHTML = (data.action_items || []).map(a => `
+        <li class="flex items-center gap-4 p-4 rounded-2xl bg-surface-container-highest/20 border border-outline-variant/10 cursor-pointer hover:border-primary/30 transition-all">
+          <div class="w-6 h-6 rounded-md border-2 border-outline-variant flex items-center justify-center hover:border-primary">
+            <span class="material-symbols-outlined text-primary text-sm opacity-0">check</span>
+          </div>
+          <span class="text-sm text-on-surface">${a}</span>
+        </li>
+      `).join('') || '<li class="text-sm text-outline">None</li>';
+
+      showPage('results');
+      showToast('Analysis complete!');
+      loadHistory();
+
+    } catch (e) {
+      showToast('Failed to analyze transcript');
+    }
+    
+    document.getElementById('loadingOverlay').classList.add('hidden');
+  }
+
+  // Show Follow-up Page
+  function showFollowUp() {
+    if (!lastAnalysis) {
+      showToast('Analyze a transcript first');
+      return;
+    }
+    
+    document.getElementById('followup-summary').textContent = lastAnalysis.summary || '—';
+    
+    const painEl = document.getElementById('followup-pain');
+    painEl.innerHTML = (lastAnalysis.pain_points || []).map(p => `
+      <li class="flex items-start gap-2 text-sm text-on-surface-variant">
+        <span class="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0"></span>
+        ${p}
+      </li>
+    `).join('') || '<li class="text-sm text-outline">None</li>';
+    
+    showPage('followup');
+    generateFollowUp();
+  }
+
+  // Generate Follow-up
+  async function generateFollowUp() {
+    if (!lastAnalysis) return;
+    
+    const format = document.getElementById('formatSelect').value;
+    const output = document.getElementById('followupOutput');
+    const indicator = document.getElementById('generatingIndicator');
+    
+    indicator.classList.remove('hidden');
+    output.value = 'Generating...';
+    
+    try {
+      const res = await fetch('/generate-followup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transcript: lastAnalysis.summary || 'Call transcript',
+          pain_points: lastAnalysis.pain_points || [],
+          deal_stage: lastAnalysis.deal_stage || 'Unknown',
+          customer_type: format
+        })
+      });
+
+      const data = await res.json();
+      output.value = data.followup_message;
+      showToast('Follow-up generated!');
+    } catch (e) {
+      output.value = 'Failed to generate follow-up';
+      showToast('Error generating follow-up');
+    }
+    
+    indicator.classList.add('hidden');
+  }
+
+  // Regenerate
+  function regenerateFollowUp() {
+    generateFollowUp();
+  }
+
+  // Copy Follow-up
+  function copyFollowUp() {
+    const text = document.getElementById('followupOutput').value;
+    navigator.clipboard.writeText(text);
+    showToast('Copied to clipboard!');
+  }
+
+  // Set Tone
+  function setTone(tone) {
+    selectedTone = tone;
+    document.getElementById('tone-pro').classList.remove('bg-surface-container-highest', 'text-primary', 'shadow-sm');
+    document.getElementById('tone-casual').classList.remove('bg-surface-container-highest', 'text-primary', 'shadow-sm');
+    document.getElementById('tone-' + tone).classList.add('bg-surface-container-highest', 'text-primary', 'shadow-sm');
+    generateFollowUp();
+  }
+
+  // Load History
+  async function loadHistory() {
+    try {
+      const res = await fetch('/history');
+      const data = await res.json();
+      historyData = data;
+      renderHistory(data);
+    } catch (e) {
+      console.error('Failed to load history');
+    }
+  }
+
+  function renderHistory(items) {
+    const container = document.getElementById('historyList');
+    
+    if (!items || items.length === 0) {
+      container.innerHTML = `
+        <div class="text-center py-20">
+          <div class="w-16 h-16 rounded-full bg-surface-container mx-auto flex items-center justify-center mb-4">
+            <span class="material-symbols-outlined text-3xl text-outline">inbox</span>
+          </div>
+          <p class="text-on-surface-variant">No analyses yet. Analyze your first call!</p>
+        </div>
+      `;
+      return;
+    }
+
+    const stageColors = {
+      'Interested': 'bg-primary/10 text-primary border-primary/20',
+      'Evaluation': 'bg-secondary-container/20 text-secondary border-secondary/30',
+      'Negotiation': 'bg-tertiary-container/20 text-tertiary border-tertiary/30',
+      'Closing': 'bg-primary-container/20 text-primary-container border-primary/30',
+      'Not Interested': 'bg-error/10 text-error border-error/20'
+    };
+
+    container.innerHTML = items.slice().reverse().map(item => {
+      const stageClass = stageColors[item.deal_stage] || stageColors['Unknown'];
+      return `
+        <div class="bg-surface-container rounded-2xl p-6 border border-outline-variant/5 hover:border-primary/30 transition-all mb-4 cursor-pointer" onclick="viewHistoryItem(${item.id})">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-4">
+              <span class="px-3 py-1 rounded-full text-[11px] font-bold border ${stageClass}">${item.deal_stage || 'Unknown'}</span>
+              <span class="text-primary text-[11px] font-bold">${item.lead_score || 'Unknown'}</span>
+              <span class="text-[11px] text-outline">${formatDate(item.id)}</span>
+            </div>
+            <button class="px-4 py-2 bg-primary/10 text-primary text-[11px] font-bold rounded-lg hover:bg-primary hover:text-on-surface transition-all">
+              Follow-up
+            </button>
+          </div>
+          <p class="text-sm text-on-surface-variant">${item.summary || '—'}</p>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function formatDate(id) {
+    const now = new Date();
+    const diff = Date.now() - (id * 60000);
+    const days = Math.floor(diff / 86400000);
+    if (days === 0) return 'Today';
+    if (days === 1) return 'Yesterday';
+    if (days < 7) return `${days} days ago`;
+    return now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  function viewHistoryItem(id) {
+    const item = historyData.find(h => h.id === id);
+    if (item) {
+      lastAnalysis = item;
+      document.getElementById('result-summary').textContent = item.summary || '—';
+      document.getElementById('result-stage').textContent = item.deal_stage || 'Unknown';
+      document.getElementById('result-score').textContent = item.lead_score || 'Unknown';
+      document.getElementById('result-next').textContent = item.next_steps || '—';
+      
+      const painEl = document.getElementById('result-pain');
+      painEl.innerHTML = (item.pain_points || []).map(p => `
+        <li class="flex items-start gap-4">
+          <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <span class="material-symbols-outlined text-primary text-sm">bolt</span>
+          </div>
+          <span class="text-sm text-on-surface-variant">${p}</span>
+        </li>
+      `).join('') || '<li class="text-sm text-outline">None identified</li>';
+      
+      showPage('results');
+    }
+  }
+
+  function filterHistory() {
+    const query = document.getElementById('searchHistory').value.toLowerCase();
+    const filtered = historyData.filter(item => 
+      (item.summary || '').toLowerCase().includes(query) ||
+      (item.deal_stage || '').toLowerCase().includes(query)
+    );
+    renderHistory(filtered);
+  }
+
+  // Toast
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    const toastText = document.getElementById('toastText');
+    toastText.textContent = msg;
+    toast.classList.remove('opacity-0', 'pointer-events-none');
+    toast.classList.add('opacity-100');
+    setTimeout(() => {
+      toast.classList.add('opacity-0', 'pointer-events-none');
+      toast.classList.remove('opacity-100');
+    }, 3000);
+  }
+
+  // Keyboard Shortcut
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      if (!document.getElementById('page-analyze').classList.contains('hidden')) {
+        analyze();
+      }
+    }
+  });
+
+  // Init
+  loadHistory();
+  document.getElementById('tone-pro').classList.add('bg-surface-container-highest', 'text-primary', 'shadow-sm');
+</script>
+</body>
+</html>
