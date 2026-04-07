@@ -8,7 +8,7 @@ let capturedTabId = null;
 
 // Configuration
 const API_URL = ''; // Will be set by user
-const BACKEND_URL = 'https://your-nextstep-service.onrender.com'; // Replace with actual URL
+const BACKEND_URL = 'https://nextstep-ej4j.onrender.com/'; // Replace with actual URL
 
 async function startCapture() {
   const statusIndicator = document.getElementById('statusIndicator');
