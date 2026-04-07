@@ -182,12 +182,19 @@
             </div>
           </div>
           <h3 class="text-2xl font-headline font-bold text-white mb-2">Record Call</h3>
-          <p class="text-on-surface-variant text-sm mb-8 max-w-[240px]">Real-time transcription and live sentiment tracking.</p>
+          <p class="text-on-surface-variant text-sm mb-4 max-w-[240px]">Real-time transcription and live sentiment tracking.</p>
           <span id="recordTimer" class="text-primary font-bold text-lg mb-4 hidden">0:00</span>
-          <div class="flex gap-2 items-center">
+          <div class="flex gap-2 items-center mb-4">
             <div class="w-1.5 h-1.5 rounded-full bg-error animate-pulse"></div>
             <span id="recordingStatus" class="text-[10px] font-bold text-on-surface-variant tracking-widest uppercase">System Ready</span>
           </div>
+          
+          <!-- Screen Capture Button -->
+          <button onclick="startScreenCapture()" id="screenCaptureBtn" class="flex items-center gap-3 px-6 py-3 bg-surface-container-high rounded-xl border border-outline-variant/30 hover:border-primary/30 transition-all mb-4">
+            <span class="material-symbols-outlined text-lg text-primary">videocam</span>
+            <span class="text-sm font-medium">Capture from Zoom/Meet</span>
+          </button>
+          
           <div id="debugInfo" class="mt-4 text-xs text-outline"></div>
         </div>
       </div>
@@ -742,6 +749,141 @@
         showToast('Recording complete!');
       }
     }
+  }
+
+  // Screen Capture (for Zoom/Meet)
+  let screenRecorder = null;
+  let screenChunks = [];
+  let screenTimer = null;
+  let screenSeconds = 0;
+
+  async function startScreenCapture() {
+    try {
+      // Request screen capture with audio
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: false,
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false
+        }
+      });
+
+      // Check if audio is being captured
+      const audioTracks = stream.getAudioTracks();
+      if (audioTracks.length === 0) {
+        showToast('No audio captured. Select a tab/window with audio.');
+        stream.getTracks().forEach(t => t.stop());
+        return;
+      }
+
+      showToast('Recording! Click Stop when done.');
+      
+      screenChunks = [];
+      screenRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      
+      screenRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          screenChunks.push(e.data);
+        }
+      };
+
+      screenRecorder.start(1000);
+      
+      // Update UI
+      const btn = document.getElementById('screenCaptureBtn');
+      btn.innerHTML = '<span class="material-symbols-outlined text-lg text-error animate-pulse">videocam</span><span class="text-sm font-medium text-error">Stop Capture</span>';
+      btn.onclick = stopScreenCapture;
+      btn.classList.add('border-error/50');
+      
+      document.getElementById('recordingStatus').textContent = 'Capturing Screen Audio...';
+      
+      // Start timer
+      screenSeconds = 0;
+      const timer = document.getElementById('recordTimer');
+      timer.classList.remove('hidden');
+      timer.textContent = '0:00';
+      screenTimer = setInterval(() => {
+        screenSeconds++;
+        const m = Math.floor(screenSeconds / 60), s = screenSeconds % 60;
+        timer.textContent = `${m}:${s.toString().padStart(2,'0')}`;
+      }, 1000);
+
+      // Transcribe periodically
+      const transcribeInterval = setInterval(async () => {
+        if (screenChunks.length > 0) {
+          const audioBlob = new Blob(screenChunks, { type: 'audio/webm' });
+          try {
+            const formData = new FormData();
+            formData.append('file', audioBlob, 'audio.webm');
+            
+            const res = await fetch('/transcribe', { method: 'POST', body: formData });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.transcript) {
+                const transcriptEl = document.getElementById('transcript');
+                transcriptEl.value += (transcriptEl.value ? ' ' : '') + data.transcript;
+                document.getElementById('charCount').textContent = transcriptEl.value.length;
+              }
+            }
+          } catch (e) {
+            console.log('Transcription in progress...');
+          }
+        }
+      }, 15000); // Every 15 seconds
+
+      // Store interval for cleanup
+      window.screenTranscribeInterval = transcribeInterval;
+
+    } catch (err) {
+      console.error('Screen capture error:', err);
+      showToast('Screen capture failed. Try selecting a window with audio.');
+    }
+  }
+
+  async function stopScreenCapture() {
+    if (!screenRecorder || screenRecorder.state === 'inactive') return;
+
+    clearInterval(screenTimer);
+    clearInterval(window.screenTranscribeInterval);
+    
+    screenRecorder.stop();
+    screenRecorder.stream.getTracks().forEach(t => t.stop());
+    
+    // Reset UI
+    const btn = document.getElementById('screenCaptureBtn');
+    btn.innerHTML = '<span class="material-symbols-outlined text-lg text-primary">videocam</span><span class="text-sm font-medium">Capture from Zoom/Meet</span>';
+    btn.onclick = startScreenCapture;
+    btn.classList.remove('border-error/50');
+    
+    document.getElementById('recordingStatus').textContent = 'System Ready';
+    
+    // Final transcription
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    if (screenChunks.length > 0) {
+      const audioBlob = new Blob(screenChunks, { type: 'audio/webm' });
+      try {
+        const formData = new FormData();
+        formData.append('file', audioBlob, 'audio.webm');
+        
+        showToast('Transcribing final audio...');
+        const res = await fetch('/transcribe', { method: 'POST', body: formData });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.transcript) {
+            const transcriptEl = document.getElementById('transcript');
+            transcriptEl.value += (transcriptEl.value ? ' ' : '') + data.transcript;
+            document.getElementById('charCount').textContent = transcriptEl.value.length;
+            showToast('Transcription complete!');
+          }
+        }
+      } catch (e) {
+        showToast('Recording saved. Analyze when ready.');
+      }
+    }
+    
+    screenRecorder = null;
   }
 
   // Character Count (for manual typing)
