@@ -794,27 +794,25 @@
       
       screenChunks = [];
       
-      // Try different audio formats
-      const mimeTypes = [
-        'audio/webm;codecs=opus',
-        'audio/webm',
-        'audio/mp4',
-        'audio/ogg'
-      ];
-      
-      let selectedMimeType = '';
-      for (const mimeType of mimeTypes) {
-        if (MediaRecorder.isTypeSupported(mimeType)) {
-          selectedMimeType = mimeType;
-          break;
-        }
+      // Get audio track
+      const audioTrack = stream.getAudioTracks()[0];
+      if (!audioTrack) {
+        showToast('No audio track found. Make sure to check "Share audio".');
+        stream.getTracks().forEach(t => t.stop());
+        return;
       }
       
-      console.log('Using mime type:', selectedMimeType || 'default');
+      console.log('Audio track:', audioTrack.label);
       
-      screenRecorder = new MediaRecorder(stream, { 
-        mimeType: selectedMimeType || undefined,
-        audioBitsPerSecond: 128000
+      // Create audio context
+      const audioContext = new AudioContext();
+      const source = audioContext.createMediaStreamSource(stream);
+      const destination = audioContext.createMediaStreamDestination();
+      source.connect(destination);
+      
+      // Create recorder with the audio context stream
+      screenRecorder = new MediaRecorder(destination.stream, { 
+        mimeType: 'audio/webm;codecs=opus'
       });
       
       screenRecorder.ondataavailable = (e) => {
@@ -828,7 +826,20 @@
         console.error('MediaRecorder error:', e);
       };
 
-      screenRecorder.start(1000);
+      try {
+        screenRecorder.start(1000);
+        console.log('MediaRecorder started successfully');
+      } catch (err) {
+        console.error('Failed to start MediaRecorder:', err);
+        // Fallback: try without AudioContext
+        screenRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        screenRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            screenChunks.push(e.data);
+          }
+        };
+        screenRecorder.start(1000);
+      }
       
       // Update UI
       const btn = document.getElementById('screenCaptureBtn');
