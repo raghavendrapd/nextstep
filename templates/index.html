@@ -759,17 +759,28 @@
 
   async function startScreenCapture() {
     try {
+      console.log('Starting screen capture...');
+      
       // Check if API is supported
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-        showToast('Screen capture not supported in this browser. Use Chrome or Edge.');
+      if (!navigator.mediaDevices) {
+        showToast('Media devices not supported.');
+        return;
+      }
+      
+      if (!navigator.mediaDevices.getDisplayMedia) {
+        showToast('getDisplayMedia not supported. Use Chrome or Edge desktop.');
         return;
       }
 
+      console.log('API supported, requesting capture...');
+      
       // Request screen capture with audio
       const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: false,
+        video: true,  // Need video for Chrome/Edge to show picker
         audio: true
       });
+      
+      console.log('Stream obtained:', stream);
 
       // Check if audio is being captured
       const audioTracks = stream.getAudioTracks();
@@ -839,13 +850,9 @@
 
     } catch (err) {
       console.error('Screen capture error:', err);
-      if (err.name === 'NotAllowedError') {
-        showToast('Permission denied. Please allow screen capture.');
-      } else if (err.name === 'NotSupportedError') {
-        showToast('Not supported. Use Chrome or Edge on desktop.');
-      } else {
-        showToast('Screen capture failed: ' + err.message);
-      }
+      console.error('Error name:', err.name);
+      console.error('Error message:', err.message);
+      showToast('Error: ' + err.name + ' - ' + err.message);
     }
   }
 
