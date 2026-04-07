@@ -213,9 +213,15 @@ class UpdateProfileRequest(BaseModel):
 @app.post("/transcribe")
 async def transcribe_audio(file: UploadFile = File(...)):
     try:
+        audio_data = await file.read()
+        print(f"Received audio: {len(audio_data)} bytes, type: {file.content_type}")
+        
+        if len(audio_data) < 1000:
+            return {"transcript": ""}
+        
         temp_path = "temp_audio.webm"
         with open(temp_path, "wb") as f:
-            f.write(await file.read())
+            f.write(audio_data)
         
         transcript = transcribe_audio_groq(temp_path)
         os.remove(temp_path)
@@ -224,6 +230,7 @@ async def transcribe_audio(file: UploadFile = File(...)):
     except HTTPException:
         raise
     except Exception as e:
+        print(f"Transcribe error: {e}")
         if os.path.exists("temp_audio.webm"):
             os.remove("temp_audio.webm")
         raise HTTPException(status_code=500, detail=str(e))

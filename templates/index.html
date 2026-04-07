@@ -860,28 +860,44 @@
         timer.textContent = `${m}:${s.toString().padStart(2,'0')}`;
       }, 1000);
 
-      // Transcribe periodically
+      // Transcribe every 30 seconds
       const transcribeInterval = setInterval(async () => {
         if (screenChunks.length > 0) {
-          const audioBlob = new Blob(screenChunks, { type: 'audio/webm' });
+          const totalSize = screenChunks.reduce((sum, chunk) => sum + chunk.size, 0);
+          console.log('Total audio size:', totalSize, 'bytes');
+          
+          if (totalSize < 5000) {
+            console.log('Audio too small, waiting...');
+            return;
+          }
+          
+          const audioBlob = new Blob(screenChunks, { type: 'audio/webm;codecs=opus' });
+          console.log('Sending audio blob:', audioBlob.size, 'bytes');
+          
           try {
             const formData = new FormData();
-            formData.append('file', audioBlob, 'audio.webm');
+            formData.append('file', audioBlob, 'recording.webm');
             
             const res = await fetch('/transcribe', { method: 'POST', body: formData });
-            if (res.ok) {
-              const data = await res.json();
-              if (data.transcript) {
-                const transcriptEl = document.getElementById('transcript');
-                transcriptEl.value += (transcriptEl.value ? ' ' : '') + data.transcript;
-                document.getElementById('charCount').textContent = transcriptEl.value.length;
-              }
+            const data = await res.json();
+            console.log('Transcribe response:', data);
+            
+            if (data.transcript) {
+              const transcriptEl = document.getElementById('transcript');
+              transcriptEl.value += (transcriptEl.value ? ' ' : '') + data.transcript;
+              document.getElementById('charCount').textContent = transcriptEl.value.length;
+              showToast('Transcribed: ' + data.transcript.substring(0, 50) + '...');
+            }
+            
+            // Clear chunks after successful transcription
+            if (data.transcript) {
+              screenChunks = [];
             }
           } catch (e) {
-            console.log('Transcription in progress...');
+            console.error('Transcription error:', e);
           }
         }
-      }, 15000); // Every 15 seconds
+      }, 30000); // Every 30 seconds
 
       // Store interval for cleanup
       window.screenTranscribeInterval = transcribeInterval;
