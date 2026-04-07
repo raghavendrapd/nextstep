@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 import csv
 import io
 
-app = FastAPI(title="NextStep AI - Sales Copilot", version="2.6.0")
+app = FastAPI(title="NextStep AI - Sales Copilot", version="3.0.0")
 
 # Session storage (in-memory for simplicity)
 sessions = {}
@@ -45,19 +45,30 @@ def verify_password(password: str, stored: str):
     except:
         return False
 
-# -------------------- OLLAMA --------------------
-def call_ollama(prompt: str) -> str:
-    try:
-        response = requests.post(
-            "http://localhost:11434/api/generate",
-            json={"model": "phi3:mini", "prompt": prompt, "stream": False},
-            timeout=120
-        )
-        response.raise_for_status()
-        return response.json().get("response", "")
-    except Exception as e:
-        print(f"Ollama Error: {e}")
-        raise
+# -------------------- GROQ AI --------------------
+def call_groq(prompt: str) -> str:
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="GROQ_API_KEY not configured")
+
+    response = requests.post(
+        "https://api.groq.com/openai/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        },
+        json={
+            "model": "llama-3.1-8b-instant",
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.3
+        },
+        timeout=30
+    )
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"Groq API error: {response.text}")
+
+    return response.json()["choices"][0]["message"]["content"]
 
 # -------------------- CORS --------------------
 app.add_middleware(
@@ -194,7 +205,7 @@ Use ONLY these values:
 Transcript:
 {transcript}"""
 
-    llm_response = call_ollama(prompt)
+    llm_response = call_groq(prompt)
     
     cleaned = llm_response.strip()
     cleaned = cleaned.strip("`")
@@ -273,7 +284,7 @@ Transcript:
 def generate_followup(req: FollowUpRequest):
     prompt = f"Write a short 4-5 line follow-up message. Stage: {req.deal_stage}. Pain: {', '.join(req.pain_points)}"
     try:
-        response = call_ollama(prompt)
+        response = call_groq(prompt)
         return {"followup_message": response.strip()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
