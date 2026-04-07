@@ -108,6 +108,10 @@ def serve_ui():
 def serve_login():
     return FileResponse("templates/login.html")
 
+@app.get("/test-screen")
+def serve_test():
+    return FileResponse("screentest.html")
+
 
 # -------------------- DB SETUP --------------------
 def get_db():

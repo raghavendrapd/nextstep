@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Screen Capture Test</title>
+  <style>
+    body { font-family: Arial; padding: 40px; background: #131315; color: white; }
+    button { padding: 20px 40px; font-size: 20px; background: #50eede; border: none; border-radius: 10px; cursor: pointer; }
+    pre { background: #1c1b1d; padding: 20px; border-radius: 10px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Screen Capture Test</h1>
+  <button onclick="startCapture()">Start Capture</button>
+  <pre id="output">Click the button to test screen capture</pre>
+
+  <script>
+    async function startCapture() {
+      const output = document.getElementById('output');
+      output.textContent = 'Testing...';
+      
+      try {
+        output.textContent = '1. Checking API...';
+        if (!navigator.mediaDevices) {
+          output.textContent = 'ERROR: navigator.mediaDevices not available';
+          return;
+        }
+        
+        if (!navigator.mediaDevices.getDisplayMedia) {
+          output.textContent = 'ERROR: getDisplayMedia not available';
+          return;
+        }
+        
+        output.textContent = '2. Requesting screen capture...';
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        
+        output.textContent = '3. SUCCESS! Stream: ' + (stream.active ? 'Active' : 'Inactive');
+        output.textContent += '\nAudio tracks: ' + stream.getAudioTracks().length;
+        output.textContent += '\nVideo tracks: ' + stream.getVideoTracks().length;
+        
+        // Stop the stream
+        stream.getTracks().forEach(track => track.stop());
+        
+      } catch (err) {
+        output.textContent = 'ERROR: ' + err.name + '\n' + err.message;
+      }
+    }
+  </script>
+</body>
+</html>
