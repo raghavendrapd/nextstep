@@ -793,12 +793,39 @@
       showToast('Recording! Click Stop when done.');
       
       screenChunks = [];
-      screenRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      
+      // Try different audio formats
+      const mimeTypes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/mp4',
+        'audio/ogg'
+      ];
+      
+      let selectedMimeType = '';
+      for (const mimeType of mimeTypes) {
+        if (MediaRecorder.isTypeSupported(mimeType)) {
+          selectedMimeType = mimeType;
+          break;
+        }
+      }
+      
+      console.log('Using mime type:', selectedMimeType || 'default');
+      
+      screenRecorder = new MediaRecorder(stream, { 
+        mimeType: selectedMimeType || undefined,
+        audioBitsPerSecond: 128000
+      });
       
       screenRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
           screenChunks.push(e.data);
+          console.log('Audio chunk received:', e.data.size, 'bytes');
         }
+      };
+
+      screenRecorder.onerror = (e) => {
+        console.error('MediaRecorder error:', e);
       };
 
       screenRecorder.start(1000);
