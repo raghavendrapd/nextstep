@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 import csv
 import io
 
-app = FastAPI(title="NextStep AI - Sales Copilot", version="3.0.0")
+app = FastAPI(title="NextStep AI - Sales Copilot", version="3.1.0")
 
 # Session storage (in-memory for simplicity)
 sessions = {}
@@ -69,6 +69,26 @@ def call_groq(prompt: str) -> str:
         raise HTTPException(status_code=502, detail=f"Groq API error: {response.text}")
 
     return response.json()["choices"][0]["message"]["content"]
+
+
+def transcribe_audio_groq(audio_file_path: str) -> str:
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="GROQ_API_KEY not configured")
+
+    with open(audio_file_path, "rb") as f:
+        response = requests.post(
+            "https://api.groq.com/openai/v1/audio/transcriptions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            files={"file": f},
+            data={"model": "whisper-large-v3"},
+            timeout=60
+        )
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"Transcription error: {response.text}")
+
+    return response.json().get("text", "")
 
 # -------------------- CORS --------------------
 app.add_middleware(
@@ -183,6 +203,26 @@ class RegisterRequest(BaseModel):
 
 class UpdateProfileRequest(BaseModel):
     display_name: str
+
+
+# -------------------- TRANSCRIBE --------------------
+@app.post("/transcribe")
+async def transcribe_audio(file: UploadFile = File(...)):
+    try:
+        temp_path = "temp_audio.webm"
+        with open(temp_path, "wb") as f:
+            f.write(await file.read())
+        
+        transcript = transcribe_audio_groq(temp_path)
+        os.remove(temp_path)
+        
+        return {"transcript": transcript}
+    except HTTPException:
+        raise
+    except Exception as e:
+        if os.path.exists("temp_audio.webm"):
+            os.remove("temp_audio.webm")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # -------------------- ANALYZE --------------------
