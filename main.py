@@ -112,6 +112,47 @@ def serve_login():
 def serve_test():
     return FileResponse("screentest.html")
 
+# Health check endpoint for UptimeRobot
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "service": "NextStep AI"}
+
+# Guest login endpoint
+@app.post("/guest-login")
+def guest_login():
+    """Create a guest session without registration"""
+    import random
+    import string
+    
+    # Create a random guest username
+    guest_id = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+    guest_username = f"guest_{guest_id}"
+    
+    # Check if guest user exists, if not create one
+    db = get_db()
+    user = db.execute("SELECT id, username, password, display_name FROM users WHERE username = ?", (guest_username,)).fetchone()
+    
+    if not user:
+        # Create guest user
+        hashed_pw, _ = hash_password("guest_" + guest_id)
+        db.execute("INSERT INTO users (username, password, display_name) VALUES (?, ?, ?)",
+                   (guest_username, hashed_pw, "Guest"))
+        db.commit()
+        user = db.execute("SELECT id, username, password, display_name FROM users WHERE username = ?", (guest_username,)).fetchone()
+    
+    db.close()
+    
+    # Create session
+    session_id = create_session(user[0], user[1])
+    response = JSONResponse({
+        "success": True,
+        "username": user[1],
+        "display_name": user[3] or "Guest",
+        "is_guest": True
+    })
+    response.set_cookie(key="session_id", value=session_id, httponly=True, max_age=24*60*60)  # 24 hours for guest
+    return response
+
 
 # -------------------- DB SETUP --------------------
 def get_db():

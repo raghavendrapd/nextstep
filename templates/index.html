@@ -185,7 +185,7 @@
           <p class="text-on-surface-variant text-sm mb-4 max-w-[240px]">Real-time transcription and live sentiment tracking.</p>
           <span id="recordTimer" class="text-primary font-bold text-lg mb-4 hidden">0:00</span>
           <div class="flex gap-2 items-center mb-4">
-            <div class="w-1.5 h-1.5 rounded-full bg-error animate-pulse"></div>
+            <div id="statusDot" class="w-1.5 h-1.5 rounded-full bg-error animate-pulse"></div>
             <span id="recordingStatus" class="text-[10px] font-bold text-on-surface-variant tracking-widest uppercase">System Ready</span>
           </div>
           
@@ -538,6 +538,20 @@
 
   // Auth check
   (async function checkAuth() {
+    // Check for guest parameter in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const isGuest = urlParams.get('guest') === 'true';
+    
+    if (isGuest) {
+      // For guest users, don't redirect to login
+      // Just continue without auth requirements
+      currentUser = { is_guest: true, display_name: 'Guest' };
+      document.getElementById('dropdownName').textContent = 'Guest';
+      document.getElementById('dropdownUsername').textContent = '@guest';
+      document.getElementById('headerAvatar').innerHTML = `<span class="text-sm font-bold text-primary">G</span>`;
+      return true;
+    }
+    
     try {
       const res = await fetch('/me');
       const data = await res.json();
@@ -610,6 +624,9 @@
 
   // Initialize Speech Recognition (browser's built-in)
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let micRestartAttempts = 0;
+  const MAX_RESTART_ATTEMPTS = 3;
+  
   if (SpeechRecognition) {
     recognition = new SpeechRecognition();
     recognition.continuous = true;
@@ -618,6 +635,8 @@
     
     recognition.onstart = () => {
       console.log('>>> Speech recognition STARTED');
+      micRestartAttempts = 0;
+      updateMicStatus('recording', 'Recording...');
     };
     
     recognition.onresult = (e) => {
@@ -627,20 +646,75 @@
         const transcript = e.results[i][0].transcript;
         const isFinal = e.results[i].isFinal;
         console.log('>>> Result', i, ':', transcript, '(final:', isFinal, ')');
-        t += transcript;
+        t += transcript + ' ';
       }
       const transcriptEl = document.getElementById('transcript');
       transcriptEl.value = t;
       document.getElementById('charCount').textContent = t.length.toLocaleString();
+      
+      // Update status to show we're still listening
+      updateMicStatus('recording', 'Listening...');
     };
     
     recognition.onerror = (e) => {
       console.error('>>> Speech recognition ERROR:', e.error);
+      
+      // Show error to user
+      let errorMsg = 'Microphone error';
+      if (e.error === 'no-speech') {
+        errorMsg = 'No speech detected - will retry';
+      } else if (e.error === 'not-allowed') {
+        errorMsg = 'Microphone permission denied';
+        showToast('Please allow microphone access to use live recording');
+      } else if (e.error === 'network') {
+        errorMsg = 'Network error - check connection';
+      }
+      
+      updateMicStatus('error', errorMsg);
+      showToast(errorMsg);
     };
     
     recognition.onend = () => {
       console.log('>>> Speech recognition ENDED');
+      
+      // Auto-restart if still supposed to be recording
+      if (isRecording && micRestartAttempts < MAX_RESTART_ATTEMPTS) {
+        console.log('>>> Auto-restarting recognition, attempt:', micRestartAttempts + 1);
+        micRestartAttempts++;
+        updateMicStatus('recording', 'Reconnecting...');
+        setTimeout(() => {
+          try {
+            recognition.start();
+          } catch (e) {
+            console.error('Failed to restart:', e);
+          }
+        }, 1000);
+      } else if (isRecording && micRestartAttempts >= MAX_RESTART_ATTEMPTS) {
+        updateMicStatus('error', 'Auto-restart failed');
+        showToast('Recording stopped. Please click mic to restart.');
+      }
     };
+  }
+  
+  // Update mic status indicator
+  function updateMicStatus(status, message) {
+    const recordingStatus = document.getElementById('recordingStatus');
+    const statusDot = document.getElementById('statusDot');
+    if (recordingStatus) {
+      recordingStatus.textContent = message;
+    }
+    if (statusDot) {
+      if (status === 'recording') {
+        statusDot.classList.remove('bg-error');
+        statusDot.classList.add('bg-primary');
+      } else if (status === 'error') {
+        statusDot.classList.remove('bg-primary');
+        statusDot.classList.add('bg-error');
+      } else if (status === 'ready') {
+        statusDot.classList.remove('bg-primary');
+        statusDot.classList.add('bg-error');
+      }
+    }
   }
 
   // Check speech recognition on page load
@@ -684,8 +758,18 @@
     
     if (!isRecording) {
       if (recognition) {
-        recognition.start();
-        showToast('Recording... Speak now!');
+        // Reset restart attempts when starting fresh
+        micRestartAttempts = 0;
+        
+        try {
+          recognition.start();
+          showToast('Recording... Speak now!');
+          updateMicStatus('recording', 'Recording...');
+        } catch (e) {
+          showToast('Could not start recording. Please try again.');
+          console.error('Start error:', e);
+          return;
+        }
       } else {
         showToast('Speech recognition not supported');
         return;
@@ -736,6 +820,7 @@
       }
       
       isRecording = false;
+      micRestartAttempts = 0;
       
       // Stop pulsing animation
       const pulse = document.getElementById('recordingPulse');
@@ -748,6 +833,8 @@
       if (text) {
         showToast('Recording complete!');
       }
+      
+      updateMicStatus('ready', 'System Ready');
     }
   }
 
