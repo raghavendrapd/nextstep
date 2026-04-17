@@ -6,6 +6,7 @@ from typing import Optional, List
 import requests
 import sqlite3
 import json
+import logging
 import os
 import re
 import hashlib
@@ -46,6 +47,31 @@ def verify_password(password: str, stored: str):
         return False
 
 # -------------------- GROQ AI --------------------
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("nextstep")
+
+def log_activity(user_id: int, action: str, details: str = ""):
+    """Log user activity"""
+    try:
+        db = get_db()
+        db.execute("""
+            INSERT INTO activity_logs (user_id, action, details, ip_address)
+            VALUES (?, ?, ?, ?)
+        """, (user_id, action, details, ""))
+        db.commit()
+        db.close()
+    except Exception as e:
+        logger.error(f"Log error: {e}")
+
+def get_client_ip(request) -> str:
+    """Get client IP from request"""
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0]
+    return request.client.host
 def call_groq(prompt: str) -> str:
     api_key = os.environ.get("GROQ_API_KEY")
     if not api_key:
@@ -124,6 +150,61 @@ def serve_test():
 def health_check():
     return {"status": "ok", "service": "NextStep AI"}
 
+# -------------------- ADMIN ANALYTICS --------------------
+@app.get("/admin/analytics")
+def get_analytics(session_id: str = Cookie(None)):
+    """Get admin analytics - protected endpoint"""
+    
+    # Simple password protection
+    admin_key = request.headers.get("X-Admin-Key")
+    correct_key = os.environ.get("ADMIN_KEY", "nextstep2024")
+    
+    if admin_key != correct_key:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    db = get_db()
+    
+    # Total users
+    total_users = db.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    
+    # Total calls analyzed
+    total_calls = db.execute("SELECT COUNT(*) FROM calls").fetchone()[0]
+    
+    # Guest users
+    guest_users = db.execute("SELECT COUNT(*) FROM users WHERE username LIKE 'guest_%'").fetchone()[0]
+    
+    # Regular users
+    regular_users = total_users - guest_users
+    
+    # Calls by deal stage
+    deal_stages = db.execute("SELECT deal_stage, COUNT(*) FROM calls GROUP BY deal_stage").fetchall()
+    
+    # Lead scores
+    lead_scores = db.execute("SELECT lead_score, COUNT(*) FROM calls GROUP BY lead_score").fetchall()
+    
+    # Recent activity (last 10)
+    recent_calls = db.execute("""
+        SELECT c.summary, c.deal_stage, c.lead_score, c.created_at, u.display_name
+        FROM calls c
+        JOIN users u ON c.user_id = u.id
+        ORDER BY c.id DESC LIMIT 10
+    """).fetchall()
+    
+    db.close()
+    
+    return {
+        "total_users": total_users,
+        "guest_users": guest_users,
+        "regular_users": regular_users,
+        "total_calls": total_calls,
+        "deal_stages": [{"stage": d[0], "count": d[1]} for d in deal_stages],
+        "lead_scores": [{"score": l[0], "count": l[1]} for l in lead_scores],
+        "recent_calls": [
+            {"summary": r[0][:100], "stage": r[1], "score": r[2], "date": r[3], "user": r[4]}
+            for r in recent_calls
+        ]
+    }
+
 # Guest login endpoint
 @app.post("/guest-login")
 def guest_login():
@@ -162,8 +243,17 @@ def guest_login():
 
 
 # -------------------- DB SETUP --------------------
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger("nextstep")
+
 def get_db():
-    conn = sqlite3.connect("calls.db", timeout=30)
+    """Get database connection with better settings"""
+    conn = sqlite3.connect("calls.db", timeout=30, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
     return conn
 
 # Initialize tables with a fresh connection
@@ -189,6 +279,16 @@ CREATE TABLE IF NOT EXISTS users (
     password TEXT NOT NULL,
     display_name TEXT,
     created_at TEXT
+)
+""")
+init_conn.execute("""
+CREATE TABLE IF NOT EXISTS activity_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    action TEXT,
+    details TEXT,
+    ip_address TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
 )
 """)
 init_conn.commit()
@@ -262,23 +362,29 @@ class UpdateProfileRequest(BaseModel):
 async def transcribe_audio(file: UploadFile = File(...)):
     try:
         audio_data = await file.read()
-        print(f"Received audio: {len(audio_data)} bytes, type: {file.content_type}")
+        logger.info(f"Received audio: {len(audio_data)} bytes, type: {file.content_type}")
         
         # Minimum 50KB required for meaningful audio
         if len(audio_data) < 50000:
-            print(f"Audio too small: {len(audio_data)} bytes")
-            return {"transcript": ""}
+            logger.warning(f"Audio too small: {len(audio_data)} bytes")
+            return {"transcript": "", "error": "Audio too short. Please record longer."}
         
         temp_path = "temp_audio.webm"
         with open(temp_path, "wb") as f:
             f.write(audio_data)
         
+        logger.info("Transcribing audio...")
         transcript = transcribe_audio_groq(temp_path)
         os.remove(temp_path)
         
+        logger.info(f"Transcription complete: {len(transcript)} chars")
         return {"transcript": transcript}
+        
     except HTTPException:
         raise
+    except Exception as e:
+        logger.error(f"Transcription error: {e}")
+        return {"transcript": "", "error": "Transcription failed. Please try again."}
     except Exception as e:
         print(f"Transcribe error: {e}")
         if os.path.exists("temp_audio.webm"):
