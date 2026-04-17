@@ -641,16 +641,26 @@
     
     recognition.onresult = (e) => {
       console.log('>>> onresult fired, results:', e.results.length);
-      let t = "";
+      let newTranscripts = "";
       for (let i = 0; i < e.results.length; i++) {
         const transcript = e.results[i][0].transcript;
         const isFinal = e.results[i].isFinal;
         console.log('>>> Result', i, ':', transcript, '(final:', isFinal, ')');
-        t += transcript + ' ';
+        newTranscripts += transcript + ' ';
       }
+      
       const transcriptEl = document.getElementById('transcript');
-      transcriptEl.value = t;
-      document.getElementById('charCount').textContent = t.length.toLocaleString();
+      
+      // Append new transcripts instead of replacing (for continuous recording)
+      if (newTranscripts.trim()) {
+        const currentVal = transcriptEl.value || '';
+        if (currentVal && !currentVal.endsWith(' ')) {
+          transcriptEl.value = currentVal + ' ' + newTranscripts;
+        } else {
+          transcriptEl.value = currentVal + newTranscripts;
+        }
+        document.getElementById('charCount').textContent = transcriptEl.value.length.toLocaleString();
+      }
       
       // Update status to show we're still listening
       updateMicStatus('recording', 'Listening...');
