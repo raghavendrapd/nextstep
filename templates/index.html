@@ -1261,7 +1261,20 @@ async function startScreenCapture() {
       const stageClass = stageColors[item.deal_stage] || 'bg-surface-container text-on-surface-variant';
       const scoreColors = { 'Hot': 'text-error', 'Warm': 'text-yellow-400', 'Cold': 'text-blue-400' };
       const scoreClass = scoreColors[item.lead_score] || 'text-on-surface-variant';
-      const dateStr = item.created_at ? new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-';
+      
+      // Fix date - handle different formats
+      let dateStr = '-';
+      if (item.created_at) {
+        try {
+          const date = new Date(item.created_at);
+          if (!isNaN(date.getTime())) {
+            dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          }
+        } catch(e) {
+          dateStr = item.created_at;
+        }
+      }
+      
       return `
         <tr class="hover:bg-surface-container-low transition-colors cursor-pointer" onclick="viewHistoryItem(${item.id})">
           <td class="px-5 py-4 max-w-sm truncate">${item.summary || 'No summary'}</td>
@@ -1311,6 +1324,19 @@ async function startScreenCapture() {
           <span class="text-sm text-on-surface-variant">${p}</span>
         </li>
       `).join('') || '<li class="text-sm text-outline">None identified</li>';
+      
+      // Show action items
+      const actionsEl = document.getElementById('result-actions');
+      if (actionsEl) {
+        actionsEl.innerHTML = (item.action_items || []).map(a => `
+          <li class="flex items-start gap-4">
+            <div class="w-8 h-8 rounded-full bg-secondary/20 flex items-center justify-center flex-shrink-0">
+              <span class="material-symbols-outlined text-secondary text-sm">task_alt</span>
+            </div>
+            <span class="text-sm text-on-surface-variant">${a}</span>
+          </li>
+        `).join('') || '<li class="text-sm text-outline">None</li>';
+      }
       
       showPage('results');
     }
