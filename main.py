@@ -145,6 +145,10 @@ def serve_login():
 def serve_test():
     return FileResponse("screentest.html")
 
+@app.get("/admin")
+def serve_admin():
+    return FileResponse("templates/admin.html")
+
 # Health check endpoint for UptimeRobot
 @app.get("/health")
 def health_check():

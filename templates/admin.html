@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>Admin - NextStep AI</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            surface: "#131315", surfacecontainer: "#201f21", primary: "#50eede",
+            "on-surface": "#e5e1e4", "on-surface-variant": "#bacac6"
+          },
+          fontFamily: { headline: ["Space Grotesk"], body: ["Inter"] }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-surface text-on-surface font-body min-h-screen">
+  <div class="max-w-6xl mx-auto p-8">
+    <header class="mb-8">
+      <h1 class="font-headline font-bold text-3xl text-primary">NextStep AI - Admin</h1>
+      <p class="text-on-surface-variant">Analytics & Dashboard</p>
+    </header>
+
+    <div id="loading" class="text-center py-20">
+      <div class="w-12 h-12 border-4 border-surfacecontainer border-t-primary rounded-full animate-spin mx-auto"></div>
+      <p class="mt-4 text-on-surface-variant">Loading analytics...</p>
+    </div>
+
+    <div id="dashboard" class="hidden space-y-8">
+      <!-- Stats Cards -->
+      <div class="grid grid-cols-4 gap-4">
+        <div class="bg-surfacecontainer p-6 rounded-2xl">
+          <p class="text-on-surface-variant text-sm">Total Users</p>
+          <p class="font-headline font-bold text-3xl text-primary" id="totalUsers">-</p>
+        </div>
+        <div class="bg-surfacecontainer p-6 rounded-2xl">
+          <p class="text-on-surface-variant text-sm">Registered Users</p>
+          <p class="font-headline font-bold text-3xl text-primary" id="regularUsers">-</p>
+        </div>
+        <div class="bg-surfacecontainer p-6 rounded-2xl">
+          <p class="text-on-surface-variant text-sm">Guest Users</p>
+          <p class="font-headline font-bold text-3xl text-primary" id="guestUsers">-</p>
+        </div>
+        <div class="bg-surfacecontainer p-6 rounded-2xl">
+          <p class="text-on-surface-variant text-sm">Total Calls</p>
+          <p class="font-headline font-bold text-3xl text-primary" id="totalCalls">-</p>
+        </div>
+      </div>
+
+      <!-- Deal Stages -->
+      <div class="bg-surfacecontainer p-6 rounded-2xl">
+        <h2 class="font-headline font-bold text-lg mb-4">Calls by Deal Stage</h2>
+        <div id="dealStages" class="flex flex-wrap gap-3"></div>
+      </div>
+
+      <!-- Lead Scores -->
+      <div class="bg-surfacecontainer p-6 rounded-2xl">
+        <h2 class="font-headline font-bold text-lg mb-4">Lead Scores</h2>
+        <div id="leadScores" class="flex flex-wrap gap-3"></div>
+      </div>
+
+      <!-- Recent Calls -->
+      <div class="bg-surfacecontainer p-6 rounded-2xl">
+        <h2 class="font-headline font-bold text-lg mb-4">Recent Calls</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-on-surface-variant/20">
+                <th class="text-left py-3 text-on-surface-variant">Summary</th>
+                <th class="text-left py-3 text-on-surface-variant">Stage</th>
+                <th class="text-left py-3 text-on-surface-variant">Score</th>
+                <th class="text-left py-3 text-on-surface-variant">User</th>
+                <th class="text-left py-3 text-on-surface-variant">Date</th>
+              </tr>
+            </thead>
+            <tbody id="recentCalls"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="error" class="hidden text-center py-20">
+      <p class="text-error">Failed to load analytics. Check your admin key.</p>
+    </div>
+  </div>
+
+  <script>
+    const ADMIN_KEY = "nextstep2024";
+
+    async function loadAnalytics() {
+      try {
+        const res = await fetch('/admin/analytics', {
+          headers: { 'X-Admin-Key': ADMIN_KEY }
+        });
+        
+        if (!res.ok) throw new Error('Unauthorized');
+        
+        const data = await res.json();
+        
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('dashboard').classList.remove('hidden');
+        
+        // Stats
+        document.getElementById('totalUsers').textContent = data.total_users;
+        document.getElementById('regularUsers').textContent = data.regular_users;
+        document.getElementById('guestUsers').textContent = data.guest_users;
+        document.getElementById('totalCalls').textContent = data.total_calls;
+        
+        // Deal stages
+        const stagesDiv = document.getElementById('dealStages');
+        data.deal_stages.forEach(s => {
+          stagesDiv.innerHTML += `<span class="px-4 py-2 bg-surface rounded-full text-sm">${s.stage || 'Unknown'}: ${s.count}</span>`;
+        });
+        
+        // Lead scores
+        const scoresDiv = document.getElementById('leadScores');
+        data.lead_scores.forEach(s => {
+          const color = s.score === 'Hot' ? 'bg-error/20 text-error' : s.score === 'Warm' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-blue-500/20 text-blue-400';
+          scoresDiv.innerHTML += `<span class="px-4 py-2 ${color} rounded-full text-sm">${s.score || 'Unknown'}: ${s.count}</span>`;
+        });
+        
+        // Recent calls
+        const tbody = document.getElementById('recentCalls');
+        data.recent_calls.forEach(c => {
+          tbody.innerHTML += `
+            <tr class="border-b border-on-surface-variant/10">
+              <td class="py-3">${c.summary || '-'}</td>
+              <td class="py-3">${c.stage || '-'}</td>
+              <td class="py-3">${c.score || '-'}</td>
+              <td class="py-3">${c.user || '-'}</td>
+              <td class="py-3 text-on-surface-variant">${c.date ? new Date(c.date).toLocaleDateString() : '-'}</td>
+            </tr>
+          `;
+        });
+        
+      } catch (e) {
+        console.error(e);
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('error').classList.remove('hidden');
+      }
+    }
+
+    loadAnalytics();
+  </script>
+</body>
+</html>
