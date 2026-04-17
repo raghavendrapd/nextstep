@@ -1260,7 +1260,7 @@ async function startScreenCapture() {
       const scoreColors = { 'Hot': 'text-error', 'Warm': 'text-yellow-400', 'Cold': 'text-blue-400' };
       const scoreClass = scoreColors[item.lead_score] || 'text-on-surface-variant';
       
-      // Fix date - handle different formats
+      // Fix date - handle different formats and null values
       let dateStr = '-';
       if (item.created_at) {
         try {
@@ -1271,6 +1271,9 @@ async function startScreenCapture() {
         } catch(e) {
           dateStr = item.created_at;
         }
+      } else if (item.id) {
+        // Fallback: estimate from record ID
+        dateStr = `Record #${item.id}`;
       }
       
       return `

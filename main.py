@@ -316,6 +316,14 @@ try:
     init_conn.commit()
 except:
     pass
+
+# Fix any NULL created_at values - use a fallback date
+try:
+    init_conn.execute("UPDATE calls SET created_at = datetime('now') WHERE created_at IS NULL")
+    init_conn.commit()
+except:
+    pass
+
 init_conn.close()
 
 
