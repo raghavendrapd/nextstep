@@ -76,13 +76,20 @@ def transcribe_audio_groq(audio_file_path: str) -> str:
     if not api_key:
         raise HTTPException(status_code=500, detail="GROQ_API_KEY not configured")
 
+    # Get file size
+    file_size = os.path.getsize(audio_file_path)
+    print(f"Transcribing file: {audio_file_path}, size: {file_size} bytes")
+    
+    # Use longer timeout for larger files
+    timeout = 60 if file_size < 10_000_000 else 120
+
     with open(audio_file_path, "rb") as f:
         response = requests.post(
             "https://api.groq.com/openai/v1/audio/transcriptions",
             headers={"Authorization": f"Bearer {api_key}"},
             files={"file": f},
             data={"model": "whisper-large-v3"},
-            timeout=60
+            timeout=timeout
         )
 
     if response.status_code != 200:
@@ -257,7 +264,9 @@ async def transcribe_audio(file: UploadFile = File(...)):
         audio_data = await file.read()
         print(f"Received audio: {len(audio_data)} bytes, type: {file.content_type}")
         
-        if len(audio_data) < 1000:
+        # Minimum 50KB required for meaningful audio
+        if len(audio_data) < 50000:
+            print(f"Audio too small: {len(audio_data)} bytes")
             return {"transcript": ""}
         
         temp_path = "temp_audio.webm"

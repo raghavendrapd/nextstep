@@ -844,7 +844,7 @@
   let screenTimer = null;
   let screenSeconds = 0;
 
-  async function startScreenCapture() {
+async function startScreenCapture() {
     try {
       console.log('Starting screen capture...');
       
@@ -858,74 +858,62 @@
         showToast('getDisplayMedia not supported. Use Chrome or Edge desktop.');
         return;
       }
-
-      console.log('API supported, requesting capture...');
-      
+ 
       // Request screen capture with audio
       const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,  // Need video for Chrome/Edge to show picker
-        audio: true
+        video: true,
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
       });
       
-      console.log('Stream obtained:', stream);
-
       // Check if audio is being captured
       const audioTracks = stream.getAudioTracks();
       if (audioTracks.length === 0) {
-        showToast('No audio captured. Select a tab/window with audio.');
+        showToast('No audio captured. Make sure to check "Share audio" in the picker.');
         stream.getTracks().forEach(t => t.stop());
         return;
       }
-
+      
       showToast('Recording! Click Stop when done.');
       
       screenChunks = [];
       
-      // Get audio track
-      const audioTrack = stream.getAudioTracks()[0];
-      if (!audioTrack) {
-        showToast('No audio track found. Make sure to check "Share audio".');
-        stream.getTracks().forEach(t => t.stop());
-        return;
+      // Use simpler recording - direct from stream
+      // Try different mimeTypes for better compatibility
+      let mimeType = 'audio/webm;codecs=opus';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'audio/webm';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = 'audio/mp4';
+        }
       }
       
-      console.log('Audio track:', audioTrack.label);
+      console.log('Using mimeType:', mimeType);
       
-      // Create audio context
-      const audioContext = new AudioContext();
-      const source = audioContext.createMediaStreamSource(stream);
-      const destination = audioContext.createMediaStreamDestination();
-      source.connect(destination);
-      
-      // Create recorder with the audio context stream
-      screenRecorder = new MediaRecorder(destination.stream, { 
-        mimeType: 'audio/webm;codecs=opus'
+      screenRecorder = new MediaRecorder(stream, { 
+        mimeType: mimeType,
+        audioBitsPerSecond: 128000
       });
       
       screenRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
           screenChunks.push(e.data);
-          console.log('Audio chunk received:', e.data.size, 'bytes');
+          console.log('Audio chunk received:', e.data.size, 'bytes, total:', screenChunks.length);
         }
       };
-
-      screenRecorder.onerror = (e) => {
-        console.error('MediaRecorder error:', e);
-      };
-
+ 
       try {
-        screenRecorder.start(1000);
+        screenRecorder.start(2000); // Collect every 2 seconds
         console.log('MediaRecorder started successfully');
       } catch (err) {
         console.error('Failed to start MediaRecorder:', err);
-        // Fallback: try without AudioContext
-        screenRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        // Fallback: try without specific mimeType
+        screenRecorder = new MediaRecorder(stream);
         screenRecorder.ondataavailable = (e) => {
           if (e.data.size > 0) {
             screenChunks.push(e.data);
           }
         };
-        screenRecorder.start(1000);
+        screenRecorder.start(2000);
       }
       
       // Update UI
@@ -934,7 +922,7 @@
       btn.onclick = stopScreenCapture;
       btn.classList.add('border-error/50');
       
-      document.getElementById('recordingStatus').textContent = 'Capturing Screen Audio...';
+      document.getElementById('recordingStatus').textContent = 'Recording...';
       
       // Start timer
       screenSeconds = 0;
@@ -946,54 +934,10 @@
         const m = Math.floor(screenSeconds / 60), s = screenSeconds % 60;
         timer.textContent = `${m}:${s.toString().padStart(2,'0')}`;
       }, 1000);
-
-      // Transcribe every 30 seconds
-      const transcribeInterval = setInterval(async () => {
-        if (screenChunks.length > 0) {
-          const totalSize = screenChunks.reduce((sum, chunk) => sum + chunk.size, 0);
-          console.log('Total audio size:', totalSize, 'bytes');
-          
-          if (totalSize < 5000) {
-            console.log('Audio too small, waiting...');
-            return;
-          }
-          
-          const audioBlob = new Blob(screenChunks, { type: 'audio/webm;codecs=opus' });
-          console.log('Sending audio blob:', audioBlob.size, 'bytes');
-          
-          try {
-            const formData = new FormData();
-            formData.append('file', audioBlob, 'recording.webm');
-            
-            const res = await fetch('/transcribe', { method: 'POST', body: formData });
-            const data = await res.json();
-            console.log('Transcribe response:', data);
-            
-            if (data.transcript) {
-              const transcriptEl = document.getElementById('transcript');
-              transcriptEl.value += (transcriptEl.value ? ' ' : '') + data.transcript;
-              document.getElementById('charCount').textContent = transcriptEl.value.length;
-              showToast('Transcribed: ' + data.transcript.substring(0, 50) + '...');
-            }
-            
-            // Clear chunks after successful transcription
-            if (data.transcript) {
-              screenChunks = [];
-            }
-          } catch (e) {
-            console.error('Transcription error:', e);
-          }
-        }
-      }, 30000); // Every 30 seconds
-
-      // Store interval for cleanup
-      window.screenTranscribeInterval = transcribeInterval;
-
+ 
     } catch (err) {
       console.error('Screen capture error:', err);
-      console.error('Error name:', err.name);
-      console.error('Error message:', err.message);
-      showToast('Error: ' + err.name + ' - ' + err.message);
+      showToast('Error: ' + err.message);
     }
   }
 
