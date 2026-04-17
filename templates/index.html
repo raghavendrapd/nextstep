@@ -342,28 +342,93 @@
     </div>
   </div>
 
-  <!-- Page: History -->
-  <div id="page-history" class="page flex-1 p-10 relative z-10 hidden">
-    <header class="flex justify-between items-center mb-10">
+  <!-- Page: History (Dashboard) -->
+  <div id="page-history" class="page flex-1 p-6 lg:p-10 relative z-10 hidden">
+    <header class="flex justify-between items-center mb-8">
       <div>
-        <h2 class="text-4xl font-headline font-bold tracking-tight text-white">History</h2>
-        <p class="text-on-surface-variant mt-1">Access your complete analysis history.</p>
+        <h2 class="text-3xl lg:text-4xl font-headline font-bold tracking-tight text-white">History</h2>
+        <p class="text-on-surface-variant mt-1">Your call analytics dashboard.</p>
       </div>
-      <div class="flex items-center gap-4">
+      <div class="flex items-center gap-3">
         <div class="relative">
           <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg">search</span>
-          <input id="searchHistory" oninput="filterHistory()" class="bg-surface-container-low border border-outline-variant/20 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all placeholder:text-gray-600 w-64" placeholder="Search analyses..." type="text"/>
+          <input id="searchHistory" oninput="filterHistory()" class="bg-surface-container-low border border-outline-variant/20 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all placeholder:text-gray-600 w-56 lg:w-64" placeholder="Search analyses..." type="text"/>
         </div>
       </div>
     </header>
 
-    <!-- History List -->
-    <div id="historyList" class="max-w-7xl">
-      <div class="text-center py-20">
-        <div class="w-16 h-16 rounded-full bg-surface-container mx-auto flex items-center justify-center mb-4">
-          <span class="material-symbols-outlined text-3xl text-outline">inbox</span>
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div class="bg-gradient-to-br from-surface-container to-surface-container-low rounded-2xl p-5 border border-outline-variant/20">
+        <div class="flex items-center gap-3 mb-2">
+          <span class="material-symbols-outlined text-primary">call</span>
+          <span class="text-xs text-on-surface-variant uppercase tracking-wider">Total Calls</span>
         </div>
-        <p class="text-on-surface-variant">No analyses yet. Analyze your first call!</p>
+        <p class="text-3xl font-headline font-bold text-white" id="statTotalCalls">-</p>
+      </div>
+      <div class="bg-gradient-to-br from-error/10 to-surface-container rounded-2xl p-5 border border-error/20">
+        <div class="flex items-center gap-3 mb-2">
+          <span class="material-symbols-outlined text-error">local_fire_department</span>
+          <span class="text-xs text-on-surface-variant uppercase tracking-wider">Hot Leads</span>
+        </div>
+        <p class="text-3xl font-headline font-bold text-error" id="statHotLeads">-</p>
+      </div>
+      <div class="bg-gradient-to-br from-yellow-500/10 to-surface-container rounded-2xl p-5 border border-yellow-500/20">
+        <div class="flex items-center gap-3 mb-2">
+          <span class="material-symbols-outlined text-yellow-400">whatshot</span>
+          <span class="text-xs text-on-surface-variant uppercase tracking-wider">Warm Leads</span>
+        </div>
+        <p class="text-3xl font-headline font-bold text-yellow-400" id="statWarmLeads">-</p>
+      </div>
+      <div class="bg-gradient-to-br from-secondary/10 to-surface-container rounded-2xl p-5 border border-secondary/20">
+        <div class="flex items-center gap-3 mb-2">
+          <span class="material-symbols-outlined text-secondary">email</span>
+          <span class="text-xs text-on-surface-variant uppercase tracking-wider">Follow-ups</span>
+        </div>
+        <p class="text-3xl font-headline font-bold text-secondary" id="statFollowups">-</p>
+      </div>
+    </div>
+
+    <!-- Simple Chart Section -->
+    <div class="bg-surface-container rounded-2xl p-6 border border-outline-variant/10 mb-8">
+      <h3 class="font-headline font-bold text-lg mb-4 flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary">trending_up</span>
+        Call Volume
+      </h3>
+      <div class="h-40 flex items-end gap-2" id="chartContainer">
+        <!-- Chart bars will be injected by JS -->
+      </div>
+      <div class="flex justify-between mt-3 text-xs text-on-surface-variant">
+        <span>Oldest</span>
+        <span>Recent</span>
+      </div>
+    </div>
+
+    <!-- History Table -->
+    <div class="bg-surface-container rounded-2xl border border-outline-variant/10 overflow-hidden">
+      <div class="p-5 border-b border-outline-variant/10">
+        <h3 class="font-headline font-bold text-lg flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary">history</span>
+          Recent Analyses
+        </h3>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-surface-container-low">
+              <th class="text-left px-5 py-4 text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Summary</th>
+              <th class="text-left px-5 py-4 text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Stage</th>
+              <th class="text-left px-5 py-4 text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Lead Score</th>
+              <th class="text-left px-5 py-4 text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Date</th>
+              <th class="text-left px-5 py-4 text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody" class="divide-y divide-outline-variant/10">
+            <tr>
+              <td colspan="5" class="px-5 py-12 text-center text-on-surface-variant">Loading...</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -1139,53 +1204,83 @@ async function startScreenCapture() {
       const res = await fetch('/history');
       const data = await res.json();
       historyData = data;
-      renderHistory(data);
+      updateDashboardStats(data);
+      renderHistoryChart(data);
+      renderHistoryTable(data);
     } catch (e) {
-      console.error('Failed to load history');
+      console.error('Failed to load history', e);
     }
   }
 
-  function renderHistory(items) {
-    const container = document.getElementById('historyList');
-    
+  function updateDashboardStats(items) {
     if (!items || items.length === 0) {
-      container.innerHTML = `
-        <div class="text-center py-20">
-          <div class="w-16 h-16 rounded-full bg-surface-container mx-auto flex items-center justify-center mb-4">
-            <span class="material-symbols-outlined text-3xl text-outline">inbox</span>
-          </div>
-          <p class="text-on-surface-variant">No analyses yet. Analyze your first call!</p>
-        </div>
-      `;
+      document.getElementById('statTotalCalls').textContent = '0';
+      document.getElementById('statHotLeads').textContent = '0';
+      document.getElementById('statWarmLeads').textContent = '0';
+      document.getElementById('statFollowups').textContent = '0';
       return;
     }
+    const total = items.length;
+    const hot = items.filter(i => i.lead_score === 'Hot').length;
+    const warm = items.filter(i => i.lead_score === 'Warm').length;
+    const followups = items.filter(i => i.action_items && i.action_items.length > 0).length;
+    document.getElementById('statTotalCalls').textContent = total;
+    document.getElementById('statHotLeads').textContent = hot || '-';
+    document.getElementById('statWarmLeads').textContent = warm || '-';
+    document.getElementById('statFollowups').textContent = followups;
+  }
 
+  function renderHistoryChart(items) {
+    const container = document.getElementById('chartContainer');
+    if (!items || items.length === 0) {
+      container.innerHTML = '<p class="text-on-surface-variant text-sm">No data to display</p>';
+      return;
+    }
+    const recentItems = items.slice(-10);
+    const maxVal = Math.max(...recentItems.map(i => i.id), 1);
+    container.innerHTML = recentItems.map(item => {
+      const height = Math.max(20, (item.id / maxVal) * 100);
+      return `<div class="flex-1 flex flex-col items-center gap-2"><div class="w-full bg-gradient-to-t from-primary/30 to-primary rounded-t-lg" style="height: ${height}%"></div><span class="text-[10px] text-on-surface-variant">${new Date(item.created_at || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span></div>`;
+    }).join('');
+  }
+
+  function renderHistoryTable(items) {
+    const tbody = document.getElementById('historyTableBody');
+    if (!items || items.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="px-5 py-12 text-center text-on-surface-variant">No analyses yet. Analyze your first call!</td></tr>';
+      return;
+    }
     const stageColors = {
-      'Interested': 'bg-primary/10 text-primary border-primary/20',
-      'Evaluation': 'bg-secondary-container/20 text-secondary border-secondary/30',
-      'Negotiation': 'bg-tertiary-container/20 text-tertiary border-tertiary/30',
-      'Closing': 'bg-primary-container/20 text-primary-container border-primary/30',
-      'Not Interested': 'bg-error/10 text-error border-error/20'
+      'Interested': 'bg-primary/10 text-primary',
+      'Evaluation': 'bg-secondary/20 text-secondary',
+      'Negotiation': 'bg-tertiary/20 text-tertiary',
+      'Closing': 'bg-primary-container/20 text-primary-container',
+      'Not Interested': 'bg-error/10 text-error'
     };
-
-    container.innerHTML = items.slice().reverse().map(item => {
-      const stageClass = stageColors[item.deal_stage] || stageColors['Unknown'];
+    tbody.innerHTML = items.slice().reverse().slice(0, 20).map(item => {
+      const stageClass = stageColors[item.deal_stage] || 'bg-surface-container text-on-surface-variant';
+      const scoreColors = { 'Hot': 'text-error', 'Warm': 'text-yellow-400', 'Cold': 'text-blue-400' };
+      const scoreClass = scoreColors[item.lead_score] || 'text-on-surface-variant';
+      const dateStr = item.created_at ? new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-';
       return `
-        <div class="bg-surface-container rounded-2xl p-6 border border-outline-variant/5 hover:border-primary/30 transition-all mb-4 cursor-pointer" onclick="viewHistoryItem(${item.id})">
-          <div class="flex items-center justify-between mb-4">
-            <div class="flex items-center gap-4">
-              <span class="px-3 py-1 rounded-full text-[11px] font-bold border ${stageClass}">${item.deal_stage || 'Unknown'}</span>
-              <span class="text-primary text-[11px] font-bold">${item.lead_score || 'Unknown'}</span>
-              <span class="text-[11px] text-outline">${formatDate(item.id)}</span>
-            </div>
-            <button class="px-4 py-2 bg-primary/10 text-primary text-[11px] font-bold rounded-lg hover:bg-primary hover:text-on-surface transition-all">
-              Follow-up
+        <tr class="hover:bg-surface-container-low transition-colors cursor-pointer" onclick="viewHistoryItem(${item.id})">
+          <td class="px-5 py-4 max-w-sm truncate">${item.summary || 'No summary'}</td>
+          <td class="px-5 py-4"><span class="px-2 py-1 rounded-full text-xs font-medium ${stageClass}">${item.deal_stage || '-'}</span></td>
+          <td class="px-5 py-4"><span class="font-semibold ${scoreClass}">${item.lead_score || '-'}</span></td>
+          <td class="px-5 py-4 text-on-surface-variant">${dateStr}</td>
+          <td class="px-5 py-4">
+            <button class="p-2 hover:bg-surface-container-high rounded-lg transition-colors">
+              <span class="material-symbols-outlined text-lg text-primary">visibility</span>
             </button>
-          </div>
-          <p class="text-sm text-on-surface-variant">${item.summary || '—'}</p>
-        </div>
+          </td>
+        </tr>
       `;
     }).join('');
+  }
+
+  function renderHistory(items) {
+    // This function is kept for backward compatibility but main logic is in renderHistoryTable
+    updateDashboardStats(items);
   }
 
   function formatDate(id) {
