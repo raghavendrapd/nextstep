@@ -159,55 +159,66 @@ def health_check():
 def get_analytics(request: Request, session_id: str = Cookie(None)):
     """Get admin analytics - protected endpoint"""
     
-    # Simple password protection
-    admin_key = request.headers.get("X-Admin-Key")
-    correct_key = os.environ.get("ADMIN_KEY", "nextstep2024")
-    
-    if admin_key != correct_key:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    
-    db = get_db()
-    
-    # Total users
-    total_users = db.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-    
-    # Total calls analyzed
-    total_calls = db.execute("SELECT COUNT(*) FROM calls").fetchone()[0]
-    
-    # Guest users
-    guest_users = db.execute("SELECT COUNT(*) FROM users WHERE username LIKE 'guest_%'").fetchone()[0]
-    
-    # Regular users
-    regular_users = total_users - guest_users
-    
-    # Calls by deal stage
-    deal_stages = db.execute("SELECT deal_stage, COUNT(*) FROM calls GROUP BY deal_stage").fetchall()
-    
-# Lead scores
-    lead_scores = db.execute("SELECT lead_score, COUNT(*) FROM calls GROUP BY lead_score").fetchall()
-    
-    # Recent activity (last 10) - use LEFT JOIN to handle NULL user_id
-    recent_calls = db.execute("""
-        SELECT c.summary, c.deal_stage, c.lead_score, c.created_at, COALESCE(u.display_name, 'Unknown')
-        FROM calls c
-        LEFT JOIN users u ON c.user_id = u.id
-        ORDER BY c.id DESC LIMIT 10
-    """).fetchall()
-    
-    db.close()
-    
-    return {
-        "total_users": total_users,
-        "guest_users": guest_users,
-        "regular_users": regular_users,
-        "total_calls": total_calls,
-        "deal_stages": [{"stage": d[0], "count": d[1]} for d in deal_stages],
-        "lead_scores": [{"score": l[0], "count": l[1]} for l in lead_scores],
-        "recent_calls": [
-            {"summary": (r[0] or '')[:100], "stage": r[1], "score": r[2], "date": r[3], "user": r[4]}
-            for r in recent_calls
-        ]
-    }
+    try:
+        # Simple password protection
+        try:
+            admin_key = request.headers.get("X-Admin-Key")
+        except Exception:
+            admin_key = None
+        
+        correct_key = os.environ.get("ADMIN_KEY", "nextstep2024")
+        
+        if admin_key != correct_key:
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        
+        db = get_db()
+        
+        # Total users
+        total_users = db.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        
+        # Total calls analyzed
+        total_calls = db.execute("SELECT COUNT(*) FROM calls").fetchone()[0]
+        
+        # Guest users
+        guest_users = db.execute("SELECT COUNT(*) FROM users WHERE username LIKE 'guest_%'").fetchone()[0]
+        
+        # Regular users
+        regular_users = total_users - guest_users
+        
+        # Calls by deal stage
+        deal_stages = db.execute("SELECT deal_stage, COUNT(*) FROM calls GROUP BY deal_stage").fetchall()
+        
+        # Lead scores
+        lead_scores = db.execute("SELECT lead_score, COUNT(*) FROM calls GROUP BY lead_score").fetchall()
+        
+        # Recent activity (last 10) - use LEFT JOIN to handle orphaned records
+        recent_calls = db.execute("""
+            SELECT c.summary, c.deal_stage, c.lead_score, c.created_at, COALESCE(u.display_name, 'Unknown')
+            FROM calls c
+            LEFT JOIN users u ON c.user_id = u.id
+            ORDER BY c.id DESC LIMIT 10
+        """).fetchall()
+        
+        db.close()
+        
+        return {
+            "total_users": total_users,
+            "guest_users": guest_users,
+            "regular_users": regular_users,
+            "total_calls": total_calls,
+            "deal_stages": [{"stage": d[0], "count": d[1]} for d in deal_stages] if deal_stages else [],
+            "lead_scores": [{"score": l[0], "count": l[1]} for l in lead_scores] if lead_scores else [],
+            "recent_calls": [
+                {"summary": (r[0] or '')[:100], "stage": r[1], "score": r[2], "date": r[3], "user": r[4]}
+                for r in recent_calls
+            ]
+}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Admin analytics error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 # Guest login endpoint
 @app.post("/guest-login")
