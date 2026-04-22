@@ -183,14 +183,14 @@ def get_analytics(session_id: str = Cookie(None)):
     # Calls by deal stage
     deal_stages = db.execute("SELECT deal_stage, COUNT(*) FROM calls GROUP BY deal_stage").fetchall()
     
-    # Lead scores
+# Lead scores
     lead_scores = db.execute("SELECT lead_score, COUNT(*) FROM calls GROUP BY lead_score").fetchall()
     
-    # Recent activity (last 10)
+    # Recent activity (last 10) - use LEFT JOIN to handle NULL user_id
     recent_calls = db.execute("""
-        SELECT c.summary, c.deal_stage, c.lead_score, c.created_at, u.display_name
+        SELECT c.summary, c.deal_stage, c.lead_score, c.created_at, COALESCE(u.display_name, 'Unknown')
         FROM calls c
-        JOIN users u ON c.user_id = u.id
+        LEFT JOIN users u ON c.user_id = u.id
         ORDER BY c.id DESC LIMIT 10
     """).fetchall()
     
@@ -204,7 +204,7 @@ def get_analytics(session_id: str = Cookie(None)):
         "deal_stages": [{"stage": d[0], "count": d[1]} for d in deal_stages],
         "lead_scores": [{"score": l[0], "count": l[1]} for l in lead_scores],
         "recent_calls": [
-            {"summary": r[0][:100], "stage": r[1], "score": r[2], "date": r[3], "user": r[4]}
+            {"summary": (r[0] or '')[:100], "stage": r[1], "score": r[2], "date": r[3], "user": r[4]}
             for r in recent_calls
         ]
     }
