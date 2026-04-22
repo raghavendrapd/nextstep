@@ -156,7 +156,7 @@ def health_check():
 
 # -------------------- ADMIN ANALYTICS --------------------
 @app.get("/admin/analytics")
-def get_analytics(session_id: str = Cookie(None)):
+def get_analytics(request: Request, session_id: str = Cookie(None)):
     """Get admin analytics - protected endpoint"""
     
     # Simple password protection
